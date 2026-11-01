@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SoundPin</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<style>
+  :root { --accent: #e4572e; --ink: #1d1d1f; --muted: #6e6e73; --bg: #fff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: system-ui, -apple-system, sans-serif; color: var(--ink); }
+  #map { position: absolute; inset: 0; }
+
+  header {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+    padding: calc(env(safe-area-inset-top) + .6rem) .8rem .6rem;
+    background: linear-gradient(#fffffff2, #ffffffd9); backdrop-filter: blur(8px);
+    box-shadow: 0 1px 6px #0002;
+  }
+  .row { display: flex; align-items: center; gap: .5rem; }
+  h1 { font-size: 1.15rem; margin: 0; flex: 1; letter-spacing: -.01em; }
+  h1 span { color: var(--accent); }
+  button {
+    font: inherit; font-size: .9rem; border: 0; border-radius: 999px; padding: .5rem .9rem;
+    background: #eee; color: var(--ink); cursor: pointer; white-space: nowrap;
+  }
+  button.on { background: var(--accent); color: #fff; }
+  #tags { display: flex; gap: .35rem; overflow-x: auto; margin-top: .55rem; padding-bottom: .15rem; scrollbar-width: none; }
+  #tags::-webkit-scrollbar { display: none; }
+  #tags button { font-size: .8rem; padding: .3rem .7rem; }
+  #status { font-size: .78rem; color: var(--muted); margin-top: .35rem; }
+
+  #player {
+    position: absolute; left: .6rem; right: .6rem; bottom: calc(env(safe-area-inset-bottom) + .6rem); z-index: 1000;
+    background: var(--bg); border-radius: 16px; box-shadow: 0 4px 24px #0003; overflow: hidden;
+    display: none; max-width: 520px; margin: 0 auto;
+  }
+  #player.show { display: block; }
+  #player img { width: 100%; max-height: 38vh; object-fit: cover; display: block; background: #f2f2f2; }
+  #player .body { padding: .8rem 1rem 1rem; }
+  #player h2 { font-size: 1.05rem; margin: 0 0 .2rem; }
+  #player p { margin: 0 0 .5rem; color: var(--muted); font-size: .88rem; }
+  #player .meta { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
+  #player audio { width: 100%; }
+  #player .close { position: absolute; top: .5rem; right: .5rem; background: #000a; color: #fff; padding: .3rem .65rem; }
+
+  .pin-heard { filter: grayscale(1); opacity: .45; }
+  .me { width: 18px; height: 18px; border-radius: 50%; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 0 0 6px #1a73e855; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<header>
+  <div class="row">
+    <h1>Sound<span>Pin</span></h1>
+    <button id="walk" title="Spiller automatisk av nærmeste spor mens du går">🚶 Gå-modus</button>
+    <button id="reset" title="Vis alle spor igjen">↺</button>
+  </div>
+  <div id="tags"></div>
+  <div id="status">Laster …</div>
+</header>
+
+<div id="player">
+  <button class="close" id="close">✕</button>
+  <img id="p-img" alt="">
+  <div class="body">
+    <h2 id="p-name"></h2>
+    <p id="p-desc"></p>
+    <div class="meta" id="p-meta"></div>
+    <audio id="audio" controls preload="none"></audio>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+// ---- Innstillinger ----
+const TRIGGER_RADIUS_M = 60;   // gå-modus: spill av når du er så nær et spor
+const WALK_VISIBLE = 15;       // gå-modus: vis bare de N nærmeste uhørte sporene
+const HIDDEN_TAGS = ["test", "personal messsage", "lifelog", "hytte", "eiendom", "db"]; // skjult som standard
+
+// ---- Tilstand ----
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+let pins = [];
+let heard = new Set(store.get("sp-heard", []));
+let activeTag = null;
+let walking = false;
+let me = null;          // {lat, lng}
+let meMarker = null;
+let watchId = null;
+let current = null;
+
+const map = L.map("map", { zoomControl: false }).setView([59.0, 6.0], 8);
+L.control.zoom({ position: "bottomright" }).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, attribution: "© OpenStreetMap"
+}).addTo(map);
+const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45 });
+map.addLayer(cluster);
+
+const $ = id => document.getElementById(id);
+const audio = $("audio");
+
+// ---- Hjelpere ----
+function dist(a, b) {
+  const R = 6371000, r = x => x * Math.PI / 180;
+  const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const fmtDist = m => m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
+const isHiddenByDefault = p => p.tags.some(t => HIDDEN_TAGS.includes(t));
+
+function visiblePins() {
+  let list = pins.filter(p => p.audioUrl && p.lat != null);
+  if (activeTag) list = list.filter(p => p.tags.includes(activeTag));
+  else list = list.filter(p => !isHiddenByDefault(p));
+  if (walking) {
+    list = list.filter(p => !heard.has(p.id));
+    if (me) list = list.map(p => ({ p, d: dist(me, p) })).sort((a, b) => a.d - b.d).slice(0, WALK_VISIBLE).map(x => x.p);
+  }
+  return list;
+}
+
+function render() {
+  cluster.clearLayers();
+  const list = visiblePins();
+  const markers = list.map(p => {
+    const m = L.marker([p.lat, p.lng], { title: p.name || "" });
+    m.on("add", () => m._icon && m._icon.classList.toggle("pin-heard", heard.has(p.id)));
+    m.on("click", () => play(p));
+    return m;
+  });
+  cluster.addLayers(markers);
+  const total = pins.filter(p => p.audioUrl).length;
+  $("status").textContent = walking
+    ? (me ? `Gå-modus: ${list.length} nærmeste uhørte spor · ${heard.size} hørt` : "Venter på posisjon …")
+    : `${list.length} av ${total} spor${activeTag ? ` med «${activeTag}»` : ""} · ${heard.size} hørt`;
+}
+
+function renderTags() {
+  const counts = {};
+  pins.forEach(p => p.tags.forEach(t => counts[t] = (counts[t] || 0) + 1));
+  const top = Object.entries(counts).filter(([t, n]) => n >= 5 && !HIDDEN_TAGS.includes(t))
+    .sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  const box = $("tags");
+  box.innerHTML = "";
+  const mk = (label, tag) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.className = activeTag === tag ? "on" : "";
+    b.onclick = () => { activeTag = tag; renderTags(); render(); };
+    box.appendChild(b);
+  };
+  mk("Alle", null);
+  top.forEach(t => mk(t, t));
+}
+
+function play(p) {
+  current = p;
+  $("p-name").textContent = p.name || "Uten navn";
+  $("p-desc").textContent = p.description || "";
+  const bits = [];
+  if (p.tags.length) bits.push(p.tags.join(" · "));
+  if (me) bits.push(fmtDist(dist(me, p)) + " unna");
+  if (p.createdAt) bits.push(p.createdAt.slice(0, 10));
+  $("p-meta").textContent = bits.join("  ·  ");
+  const img = $("p-img");
+  if (p.imageUrl) { img.src = p.imageUrl; img.style.display = "block"; }
+  else { img.removeAttribute("src"); img.style.display = "none"; }
+  $("player").classList.add("show");
+  audio.src = p.audioUrl;
+  audio.play().catch(() => {});
+  if (!walking) map.panTo([p.lat, p.lng]);
+}
+
+audio.addEventListener("ended", () => {
+  if (!current) return;
+  heard.add(current.id);
+  store.set("sp-heard", [...heard]);
+  render();
+  if (walking) checkNearby();
+});
+
+$("close").onclick = () => { audio.pause(); $("player").classList.remove("show"); current = null; };
+$("reset").onclick = () => {
+  if (!confirm("Nullstille hørte spor?")) return;
+  heard = new Set(); store.set("sp-heard", []); render();
+};
+
+// ---- Gå-modus ----
+function checkNearby() {
+  if (!walking || !me || (current && !audio.paused)) return;
+  const next = visiblePins().map(p => ({ p, d: dist(me, p) })).filter(x => x.d <= TRIGGER_RADIUS_M).sort((a, b) => a.d - b.d)[0];
+  if (next) play(next.p);
+}
+
+$("walk").onclick = () => {
+  walking = !walking;
+  $("walk").classList.toggle("on", walking);
+  if (walking) {
+    // Låser opp lyd på iOS (krever brukerhandling)
+    audio.muted = true; audio.play().catch(() => {}).finally(() => { audio.pause(); audio.muted = false; });
+    if (!navigator.geolocation) { alert("Nettleseren støtter ikke posisjon."); return; }
+    watchId = navigator.geolocation.watchPosition(pos => {
+      const first = !me;
+      me = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      if (!meMarker) meMarker = L.marker([me.lat, me.lng], { icon: L.divIcon({ className: "", html: '<div class="me"></div>', iconSize: [18, 18] }), interactive: false }).addTo(map);
+      else meMarker.setLatLng([me.lat, me.lng]);
+      if (first) map.setView([me.lat, me.lng], 16);
+      render();
+      checkNearby();
+    }, err => { $("status").textContent = "Fikk ikke posisjon: " + err.message; }, { enableHighAccuracy: true, maximumAge: 5000 });
+  } else {
+    if (watchId != null) navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+  }
+  render();
+};
+
+// ---- Last data ----
+fetch("data/pins.json").then(r => r.json()).then(data => {
+  pins = data;
+  renderTags();
+  render();
+  // Start over Rogaland der flest spor ligger
+  map.setView([59.0, 5.9], 9);
+  // Åpne et bestemt spor via ?pin=<id>
+  const id = new URLSearchParams(location.search).get("pin");
+  const p = id && pins.find(x => x.id === id);
+  if (p) { map.setView([p.lat, p.lng], 16); play(p); }
+}).catch(e => { $("status").textContent = "Kunne ikke laste spor: " + e.message; });
+</script>
+</body>
+</html>
