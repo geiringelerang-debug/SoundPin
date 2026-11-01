@@ -1,0 +1,30 @@
+[
+ {
+  "path": "cdn/images/Logo.svg",
+  "url": "https://firebasestorage.googleapis.com/v0/b/soundpin-50207.appspot.com/o/cdn%2Fimages%2FLogo.svg?alt=media&token=e3212526-15c6-42ac-af2e-b3ed50b67de0",
+  "size": 867,
+  "contentType": "image/svg+xml",
+  "created": "2022-01-20T06:57:57.764Z"
+ },
+ {
+  "path": "cdn/images/LogoCentered.svg",
+  "url": "https://firebasestorage.googleapis.com/v0/b/soundpin-50207.appspot.com/o/cdn%2Fimages%2FLogoCentered.svg?alt=media&token=ae69eb8f-acc7-40fa-bb97-05caa97a824d",
+  "size": 20120,
+  "contentType": "image/svg+xml",
+  "created": "2022-01-20T06:57:57.803Z"
+ },
+ {
+  "path": "cdn/images/LogoOneLine.svg",
+  "url": "https://firebasestorage.googleapis.com/v0/b/soundpin-50207.appspot.com/o/cdn%2Fimages%2FLogoOneLine.svg?alt=media&token=5f925043-6e28-4f39-bcfe-1a6850a053aa",
+  "size": 11068,
+  "contentType": "image/svg+xml",
+  "created": "2022-01-20T06:57:57.812Z"
+ },
+ {
+  "path": "cdn/images/Splash.svg",
+  "url": "https://firebasestorage.googleapis.com/v0/b/soundpin-50207.appspot.com/o/cdn%2Fimages%2FSplash.svg?alt=media&token=38aa4b44-29ae-4e2a-aaa8-79e5e06efeb5",
+  "size": 20163,
+  "contentType": "image/svg+xml",
+  "created": "2022-01-20T06:57:57.834Z"
+ }
+]
