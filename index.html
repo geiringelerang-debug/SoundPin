@@ -828,6 +828,7 @@ function openProfile() {
       <div class="row"><input type="text" readonly value="${esc(link)}" id="pf-link"><button id="pf-copy">Kopier</button></div>
       <div class="hint">De som åpner lenken og logger inn, kan høre sporene du deler med «Venner».</div>
       <label>Venner (${members.length})</label><div id="pf-members"></div>
+      <label>Mine spor</label><div id="pf-tracks"></div>
       <div id="pf-admin"></div>
       <div class="err" id="pf-err"></div>
       <div class="footer"><button id="pf-out">Logg ut</button><button id="pf-close">Lukk</button><button class="primary" id="pf-save">Lagre</button></div>`;
@@ -842,6 +843,7 @@ function openProfile() {
       };
       mbox.appendChild(r);
     });
+    renderMyTracks();
     $("pf-copy").onclick = () => navigator.clipboard.writeText(link).then(() => toast("Lenken er kopiert"));
     $("pf-out").onclick = async () => { await fb.signOut(fb.auth); $("prof-bg").classList.remove("show"); location.reload(); };
     $("pf-save").onclick = saveProfile;
@@ -850,6 +852,31 @@ function openProfile() {
   }
   $("pf-close").onclick = () => $("prof-bg").classList.remove("show");
   $("prof-bg").classList.add("show");
+}
+// Egne spor med lyttescore og historikk; her kan de også slettes
+function renderMyTracks() {
+  const box = $("pf-tracks"); if (!box) return;
+  const mine = tracks.filter(t => t.creator === user.uid).sort((a, b) => b.createdAt - a.createdAt);
+  if (!mine.length) { box.innerHTML = '<div class="hint">Ingen ennå. Trykk på krysset i kartet for å lage ditt første spor.</div>'; return; }
+  const VIS = { private: "Bare meg", friends: "Venner", public: "Alle" };
+  box.innerHTML = "";
+  mine.forEach(t => {
+    const d = decayed(stats[t.id] || {});
+    const replies = tracks.filter(x => x.replyTo === t.id).length;
+    const r = document.createElement("div"); r.className = "list-row";
+    r.innerHTML = `<span><b>${esc(t.title || "Uten navn")}</b>${t.replyTo ? " (svar)" : ""}<br><span class="hint">
+      ${new Date(t.createdAt).toLocaleDateString("nb-NO")} · ${VIS[t.visibility] || ""}${t.hidden ? " · skjult" : ""}${t.seqName ? ` · ${esc(t.seqName)} #${t.seqNo}` : ""}<br>
+      Score ${Math.round(quality(t) * 100)} % · ${Math.round(d.s)} startet · ${Math.round(d.c)} hørt ferdig · ${replies} svar</span></span>
+      <button>Vis</button><button>Slett</button>`;
+    const [show, del] = r.querySelectorAll("button");
+    show.onclick = () => { $("prof-bg").classList.remove("show"); const p = t.replyTo ? byId.get(t.replyTo) || t : t; map.setView([p.lat, p.lng], 17); play(t); };
+    del.onclick = async () => {
+      if (!confirm(`Slette «${t.title || "sporet"}»?`)) return;
+      try { await fb.deleteDoc(fb.doc(fb.db, "sp_tracks", t.id)); setTracks(tracks.filter(x => x.id !== t.id)); renderMyTracks(); toast("Sporet er slettet."); }
+      catch (e) { toast("Kunne ikke slette: " + (e.code || e.message)); }
+    };
+    box.appendChild(r);
+  });
 }
 async function saveProfile() {
   const btn = $("pf-save"); btn.disabled = true; $("pf-err").textContent = "";
