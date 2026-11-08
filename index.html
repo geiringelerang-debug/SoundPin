@@ -44,15 +44,17 @@
     position: absolute; left: 50%; top: 50%; width: 76px; height: 76px; margin: -38px 0 0 -38px; z-index: 999;
     border-radius: 50%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer;
   }
+  /* Hult kryss: midten er åpen, så spor under krysset synes */
   #cross::before, #cross::after {
-    content: ""; position: absolute; left: 50%; top: 50%; background: var(--accent); border-radius: 3px;
-    box-shadow: 0 0 0 2px #fff, 0 1px 6px #0006;
+    content: ""; position: absolute; left: 50%; top: 50%; border-radius: 3px; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 3px #0006);
   }
-  #cross::before { width: 44px; height: 6px; margin: -3px 0 0 -22px; }
-  #cross::after { width: 6px; height: 44px; margin: -22px 0 0 -3px; }
+  #cross::before { width: 56px; height: 5px; margin: -2.5px 0 0 -28px;
+    background: linear-gradient(90deg, var(--c, var(--accent)) 0 32%, transparent 32% 68%, var(--c, var(--accent)) 68%); }
+  #cross::after { width: 5px; height: 56px; margin: -28px 0 0 -2.5px;
+    background: linear-gradient(180deg, var(--c, var(--accent)) 0 32%, transparent 32% 68%, var(--c, var(--accent)) 68%); }
   #cross .ring { position: absolute; inset: 4px; border-radius: 50%; border: 3px solid transparent; }
   #cross.rec .ring { border-color: #e01; background: #e0111a22; animation: blink 1s infinite; }
-  #cross.rec::before, #cross.rec::after { background: #e01; }
+  #cross.rec { --c: #e01; }
   #cross .lbl {
     position: absolute; top: 80px; left: 50%; transform: translateX(-50%); white-space: nowrap;
     font-size: .75rem; background: #fffe; padding: .15rem .5rem; border-radius: 999px; box-shadow: 0 1px 4px #0003; pointer-events: none;
@@ -315,6 +317,7 @@ L.control.zoom({ position: "bottomright" }).addTo(map);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map);
 const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45 });
 map.addLayer(cluster);
+const freshLayer = L.layerGroup().addTo(map);   // nye spor grupperes ikke, så de alltid synes
 let heatLayer = null;
 const audio = $("audio");
 
@@ -387,7 +390,8 @@ function secretVisible(t) {
 }
 function baseList() {
   let list = tracks.filter(playable);
-  if (activeTag) list = list.filter(t => t.tags.includes(activeTag));
+  if (activeTag === "__mine") list = list.filter(t => user && t.creator === user.uid);
+  else if (activeTag) list = list.filter(t => t.tags.includes(activeTag));
   else list = list.filter(t => !isHiddenByDefault(t));
   return list;
 }
@@ -419,14 +423,15 @@ function markerFor(t) {
 }
 function render() {
   const list = visibleTracks();
-  cluster.clearLayers();
+  cluster.clearLayers(); freshLayer.clearLayers();
   if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
   if (heatOn) {
     // Varmekart: alle spor unntatt skjulte, uavhengig av 15-grensen
     const pts = baseList().filter(t => !t.hidden).map(t => [t.lat, t.lng, 0.6]);
     heatLayer = L.heatLayer(pts, { radius: 22, blur: 18, maxZoom: 15 }).addTo(map);
   } else {
-    cluster.addLayers(list.map(markerFor));
+    cluster.addLayers(list.filter(t => t.legacy).map(markerFor));
+    list.filter(t => !t.legacy).forEach(t => freshLayer.addLayer(markerFor(t)));
   }
   const total = tracks.filter(playable).length;
   $("status").textContent = heatOn ? `Varmekart · ${total} spor`
@@ -444,7 +449,9 @@ function renderTags() {
     b.onclick = () => { activeTag = tag; renderTags(); render(); };
     box.appendChild(b);
   };
-  mk("Alle", null); top.forEach(x => mk(x, x));
+  mk("Alle", null);
+  if (user && tracks.some(t => t.creator === user.uid)) mk("⭐ Mine spor", "__mine");
+  top.forEach(x => mk(x, x));
 }
 
 // ================= Avspilling =================
@@ -1079,6 +1086,8 @@ $("rec-save").onclick = async () => {
     await fb.setDoc(fb.doc(fb.db, "sp_tracks", id), data);
     if (R.replyTo) await bump(R.replyTo.id, "r", { boost: Date.now() + REPLY_BOOST_DAYS * DAY });
     setTracks([...tracks, normTrack(id, data)]);
+    // Vis det nye sporet litt over krysset, så det ikke skjules
+    if (!R.replyTo) { map.setView([data.lat, data.lng], Math.max(map.getZoom(), 16), { animate: false }); map.panBy([0, 90], { animate: false }); }
     $("rec-bg").classList.remove("show");
     toast(R.replyTo ? "Svaret er lagret." : "Sporet er lagret.");
     if (R.replyTo) play(R.replyTo);
