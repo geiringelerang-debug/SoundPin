@@ -39,12 +39,26 @@
   #me-btn img { width: 22px; height: 22px; border-radius: 50%; vertical-align: middle; object-fit: cover; }
   #me-btn { padding: .4rem .6rem; }
 
-  #fab {
-    position: absolute; right: .9rem; bottom: calc(env(safe-area-inset-bottom) + 6.5rem); z-index: 1000;
-    width: 58px; height: 58px; border-radius: 50%; font-size: 1.5rem; padding: 0;
-    background: var(--accent); color: #fff; box-shadow: 0 4px 16px #0004;
+  /* Kryss midt i kartet: trykk og hold for å ta opp */
+  #cross {
+    position: absolute; left: 50%; top: 50%; width: 76px; height: 76px; margin: -38px 0 0 -38px; z-index: 999;
+    border-radius: 50%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer;
   }
-  body.has-player #fab { display: none; }
+  #cross::before, #cross::after {
+    content: ""; position: absolute; left: 50%; top: 50%; background: var(--accent); border-radius: 3px;
+    box-shadow: 0 0 0 2px #fff, 0 1px 6px #0006;
+  }
+  #cross::before { width: 44px; height: 6px; margin: -3px 0 0 -22px; }
+  #cross::after { width: 6px; height: 44px; margin: -22px 0 0 -3px; }
+  #cross .ring { position: absolute; inset: 4px; border-radius: 50%; border: 3px solid transparent; }
+  #cross.rec .ring { border-color: #e01; background: #e0111a22; animation: blink 1s infinite; }
+  #cross.rec::before, #cross.rec::after { background: #e01; }
+  #cross .lbl {
+    position: absolute; top: 80px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+    font-size: .75rem; background: #fffe; padding: .15rem .5rem; border-radius: 999px; box-shadow: 0 1px 4px #0003; pointer-events: none;
+  }
+  #cross.rec .lbl { background: #e01; color: #fff; font-size: .9rem; font-variant-numeric: tabular-nums; }
+  body.has-player #cross .lbl { display: none; }
 
   /* Markører */
   .pin {
@@ -98,7 +112,7 @@
   }
   .sheet h2 { margin: 0 0 .6rem; font-size: 1.1rem; }
   .sheet label { display: block; font-size: .82rem; color: var(--muted); margin: .7rem 0 .25rem; }
-  .sheet input[type=text], .sheet textarea, .sheet select {
+  .sheet input[type=text], .sheet input[type=password], .sheet textarea, .sheet select {
     width: 100%; font: inherit; font-size: .95rem; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: 10px; background: #fff;
   }
   .sheet textarea { min-height: 7rem; resize: vertical; }
@@ -124,7 +138,7 @@
     background: #111; color: #fff; padding: 1.1rem 1.2rem calc(env(safe-area-inset-bottom) + 1.1rem);
   }
   body.car #car { display: block; }
-  body.car #fab, body.car #player, body.car #tags { display: none !important; }
+  body.car #cross, body.car #player, body.car #tags { display: none !important; }
   #car .speed { font-size: .9rem; opacity: .7; }
   #car .now { font-size: 1.6rem; font-weight: 600; margin: .3rem 0; line-height: 1.2; }
   #car .next { font-size: 1rem; opacity: .8; }
@@ -151,7 +165,7 @@
   <div id="status">Laster …</div>
 </header>
 
-<button id="fab" title="Nytt lydspor">🎙</button>
+<div id="cross" title="Hold inne for å ta opp her. Trykk for flere valg."><div class="ring"></div><div class="lbl" id="cross-lbl">Hold for å ta opp</div></div>
 
 <div id="player">
   <button class="close" id="close">✕</button>
@@ -210,7 +224,7 @@
   <label>Plassering</label>
   <div class="seg" id="rec-pos">
     <button data-p="me">📍 Min posisjon</button>
-    <button data-p="map">🗺 Midt i kartet</button>
+    <button data-p="map">✚ Ved krysset</button>
   </div>
   <div class="hint" id="rec-pos-hint"></div>
 
@@ -588,7 +602,7 @@ function toggleWalk(force) {
   if (walking) {
     // Låser opp lyd på iOS (krever brukerhandling)
     audio.muted = true; audio.play().catch(() => {}).finally(() => { audio.pause(); audio.muted = false; });
-    if (!navigator.geolocation) { alert("Nettleseren støtter ikke posisjon."); return; }
+    if (!navigator.geolocation) { toast("Nettleseren støtter ikke posisjon."); return; }
     startWatch();
   } else if (carMode) setCar(false);
   render();
@@ -668,6 +682,19 @@ const canPublic = () => ["authorized", "verifier", "admin"].includes(role());
 const isVerifier = () => ["verifier", "admin"].includes(role());
 const ROLE_NAMES = { user: "Ny bruker", authorized: "Autorisert", verifier: "Verifikator", admin: "Administrator" };
 
+const AUTH_ERRORS = {
+  "auth/unauthorized-domain": "Nettadressen er ikke godkjent i Firebase (Authentication → Settings → Authorized domains).",
+  "auth/operation-not-allowed": "Denne innloggingsmåten er ikke slått på i Firebase.",
+  "auth/invalid-credential": "Feil e-post eller passord.",
+  "auth/wrong-password": "Feil passord.",
+  "auth/user-not-found": "Fant ingen konto med denne e-posten.",
+  "auth/email-already-in-use": "E-posten er allerede i bruk. Logg inn i stedet.",
+  "auth/weak-password": "Passordet må ha minst 6 tegn.",
+  "auth/invalid-email": "Ugyldig e-postadresse.",
+  "auth/network-request-failed": "Ingen kontakt med nettet."
+};
+const authMsg = e => AUTH_ERRORS[e.code] || ("Innlogging feilet: " + (e.code || e.message));
+// Kobler den anonyme brukeren til kontoen når det går, ellers vanlig innlogging
 async function signIn() {
   const provider = new fb.GoogleAuthProvider();
   const before = user?.uid;
@@ -675,11 +702,29 @@ async function signIn() {
     if (user && user.isAnonymous) await fb.linkWithPopup(user, provider);
     else await fb.signInWithPopup(fb.auth, provider);
   } catch (e) {
-    if (e.code === "auth/credential-already-in-use") await fb.signInWithPopup(fb.auth, provider);
-    else if (e.code !== "auth/popup-closed-by-user") { alert("Innlogging feilet: " + (e.code || e.message)); return; }
+    if (e.code === "auth/credential-already-in-use") {
+      try { await fb.signInWithPopup(fb.auth, provider); } catch (e2) { return authMsg(e2); }
+    } else if (["auth/popup-blocked", "auth/operation-not-supported-in-this-environment", "auth/cancelled-popup-request"].includes(e.code)) {
+      // Nettleseren blokkerte vinduet: gå via omdirigering i stedet
+      if (user && user.isAnonymous) await fb.linkWithRedirect(user, provider); else await fb.signInWithRedirect(fb.auth, provider);
+      return null;
+    } else if (e.code === "auth/popup-closed-by-user") return null;
+    else return authMsg(e);
   }
   // Ved kobling beholdes bruker-ID-en, og onAuthStateChanged slår ikke til
   if (fb.auth.currentUser && fb.auth.currentUser.uid === before) { user = fb.auth.currentUser; await afterSignIn(); }
+  return null;
+}
+async function signInEmail(email, pass, create) {
+  const before = user?.uid;
+  try {
+    if (create) {
+      if (user && user.isAnonymous) await fb.linkWithCredential(user, fb.EmailAuthProvider.credential(email, pass));
+      else await fb.createUserWithEmailAndPassword(fb.auth, email, pass);
+    } else await fb.signInWithEmailAndPassword(fb.auth, email, pass);
+  } catch (e) { return authMsg(e); }
+  if (fb.auth.currentUser && fb.auth.currentUser.uid === before) { user = fb.auth.currentUser; await afterSignIn(); }
+  return null;
 }
 function randomCode(n = 10) { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map(x => "abcdefghjkmnpqrstuvwxyz23456789"[x % 31]).join(""); }
 async function afterSignIn() {
@@ -690,11 +735,11 @@ async function afterSignIn() {
     const snap = await fb.getDoc(ref);
     if (snap.exists()) profile = snap.data();
     else {
-      profile = { name: user.displayName || "Ny bruker", role: "user", inviteCode: randomCode(), iconUrl: null, following: [], createdAt: Date.now() };
+      profile = { name: user.displayName || (user.email || "").split("@")[0] || "Ny bruker", role: "user", inviteCode: randomCode(), iconUrl: null, following: [], createdAt: Date.now() };
       await fb.setDoc(ref, profile);
     }
     members = (await fb.getDocs(fb.collection(fb.db, "sp_users", user.uid, "members"))).docs.map(d => ({ uid: d.id, ...d.data() }));
-  } catch (e) { console.warn("Profil ikke lastet", e); }
+  } catch (e) { console.warn("Profil ikke lastet", e); toast("Profilen kunne ikke lagres: " + (e.code || e.message) + ". Er sikkerhetsreglene publisert?", 8000); }
   updateMeButton();
   await handleInvite();
   await loadAll();
@@ -735,9 +780,22 @@ function openProfile() {
   const box = $("prof");
   if (!fb) { box.innerHTML = `<h2>Profil</h2><p>Innlogging er ikke satt opp ennå. Firebase-konfigurasjonen mangler i <code>firebase-config.js</code>.</p><div class="footer"><button onclick="document.getElementById('prof-bg').classList.remove('show')">Lukk</button></div>`; $("prof-bg").classList.add("show"); return; }
   if (!isReal()) {
-    box.innerHTML = `<h2>Logg inn</h2><p>Du kan lytte uten å logge inn. For å lage spor, svare, bli venn eller få ditt eget ikon må du logge inn med Google.</p>
-      <div class="footer"><button id="pf-close">Lukk</button><button class="primary" id="pf-login">Logg inn med Google</button></div>`;
-    $("pf-login").onclick = async () => { $("prof-bg").classList.remove("show"); await signIn(); };
+    box.innerHTML = `<h2>Logg inn</h2><p>Du kan lytte uten å logge inn. For å lage spor, svare, bli venn eller få ditt eget ikon må du logge inn.</p>
+      <button class="primary" id="pf-login" style="width:100%; padding:.75rem">Logg inn med Google</button>
+      <label>Eller med e-post og passord</label>
+      <input type="text" id="pf-email" inputmode="email" autocomplete="email" placeholder="E-post">
+      <input type="password" id="pf-pass" placeholder="Passord (minst 6 tegn)" style="margin-top:.4rem" autocomplete="current-password">
+      <div class="row" style="margin-top:.5rem"><button id="pf-elogin" style="flex:1">Logg inn</button><button id="pf-ecreate" style="flex:1">Ny konto</button></div>
+      <div class="err" id="pf-err"></div>
+      <div class="footer"><button id="pf-close">Lukk</button></div>`;
+    const done = msg => { if (msg) $("pf-err").textContent = msg; else if (isReal()) { $("prof-bg").classList.remove("show"); toast("Du er logget inn."); } };
+    $("pf-login").onclick = async () => { $("pf-err").textContent = ""; done(await signIn()); };
+    const em = create => async () => {
+      const e = $("pf-email").value.trim(), p = $("pf-pass").value;
+      if (!e || !p) { $("pf-err").textContent = "Fyll inn e-post og passord."; return; }
+      $("pf-err").textContent = ""; done(await signInEmail(e, p, create));
+    };
+    $("pf-elogin").onclick = em(false); $("pf-ecreate").onclick = em(true);
   } else {
     const link = `${location.origin}${location.pathname}?venn=${user.uid}&k=${profile?.inviteCode || ""}`;
     box.innerHTML = `<h2>Profil</h2>
@@ -845,10 +903,15 @@ const maxSeconds = () => canPublic() ? MAX_SECONDS_AUTH : MAX_SECONDS_USER;
 function seg(id, key, val) { $(id).querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset[key] === val)); }
 function fmtTime(s) { s = Math.floor(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
 
-function openRecorder({ replyTo = null } = {}) {
-  if (!fb) { openProfile(); return; }
-  if (!isReal()) { openProfile(); toast("Logg inn for å lage spor."); return; }
-  Object.assign(R, { kind: "audio", blob: null, mime: "", duration: 0, replyTo, pos: me ? "me" : "map", vis: canPublic() ? "public" : "friends" });
+function canRecord() {
+  if (!fb) { openProfile(); return false; }
+  if (!isReal()) { openProfile(); toast("Logg inn for å lage spor."); return false; }
+  return true;
+}
+function openRecorder({ replyTo = null, recorded = null } = {}) {
+  if (!canRecord()) return;
+  Object.assign(R, { kind: "audio", blob: null, mime: "", duration: 0, replyTo, pos: recorded ? "map" : (me ? "me" : "map"), vis: canPublic() ? "public" : "friends" });
+  if (!recorded) R.crossPos = null;
   $("rec-title").textContent = replyTo ? `Svar på «${replyTo.title || "spor"}»` : "Nytt lydspor";
   ["rec-name", "rec-desc", "rec-tags", "rec-textarea", "rec-seq-name"].forEach(id => $(id).value = "");
   if (replyTo) $("rec-name").value = "Svar: " + (replyTo.title || "");
@@ -863,7 +926,13 @@ function openRecorder({ replyTo = null } = {}) {
   $("rec-seq").innerHTML = `<option value="">Ingen sekvens</option>${Object.entries(mine).map(([id, s]) => `<option value="${id}">${esc(s.name)} (neste blir #${s.n + 1})</option>`).join("")}<option value="new">+ Ny sekvens …</option>`;
   $("rec-seq-name").style.display = "none";
   setKind("audio"); setPos(R.pos); setVis(R.vis);
+  if (recorded) {
+    Object.assign(R, recorded);
+    $("rec-preview").src = URL.createObjectURL(R.blob); $("rec-preview").style.display = "block";
+    $("rec-time").textContent = fmtTime(R.duration); $("rec-start").textContent = "Ta opp på nytt";
+  } else $("rec-start").textContent = "Start opptak";
   $("rec-bg").classList.add("show");
+  if (recorded) setTimeout(() => $("rec-name").focus(), 300);
 }
 function setKind(k) {
   R.kind = k; seg("rec-kind", "k", k);
@@ -873,8 +942,8 @@ function setKind(k) {
 function setPos(p) {
   if (p === "me" && !me) { toast("Slå på gå-modus for å bruke posisjonen din, eller velg midt i kartet."); p = "map"; }
   R.pos = p; seg("rec-pos", "p", p);
-  const c = p === "me" ? me : map.getCenter();
-  $("rec-pos-hint").textContent = p === "map" ? `Midt i kartet (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}). Lukk og flytt kartet for å velge et annet sted.` : `Der du står nå (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}).`;
+  const c = p === "me" ? me : (R.crossPos || map.getCenter());
+  $("rec-pos-hint").textContent = p === "map" ? `Der krysset stod (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}). Flytt kartet og hold krysset inne for å velge et annet sted.` : `Der du står nå (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}).`;
 }
 function setVis(v) {
   if (v === "public" && !canPublic()) { toast("Du kan dele med alle når du har fått autorisert status."); v = "friends"; }
@@ -949,7 +1018,7 @@ $("rec-save").onclick = async () => {
     if (n > max) { err.textContent = `Teksten er for lang (${n} ord, maks ${max}). Del den gjerne opp i en sekvens.`; return; }
     if (!$("rec-rights").checked) { err.textContent = "Bekreft at du har rett til å bruke teksten."; return; }
   }
-  const pos = R.replyTo ? { lat: R.replyTo.lat, lng: R.replyTo.lng } : (R.pos === "me" && me ? me : map.getCenter());
+  const pos = R.replyTo ? { lat: R.replyTo.lat, lng: R.replyTo.lng } : (R.pos === "me" && me ? me : (R.crossPos || map.getCenter()));
   let seqId = null, seqName = null, seqNo = 0;
   const sv = $("rec-seq").value;
   if (!R.replyTo && sv) {
@@ -996,7 +1065,60 @@ $("rec-save").onclick = async () => {
   } catch (e) { err.textContent = "Kunne ikke lagre: " + (e.code || e.message); }
   btn.disabled = false; btn.textContent = "Lagre";
 };
-$("fab").onclick = () => openRecorder();
+// Trykk og hold på krysset: opptaket starter etter et kort hold og stopper når du slipper
+const cross = $("cross");
+const H = { timer: null, rec: null, stream: null, chunks: [], t0: 0, tick: null, released: false, mime: "" };
+function crossLabel(txt) { $("cross-lbl").textContent = txt; }
+async function holdStart() {
+  H.released = false;
+  try {
+    H.stream = await navigator.mediaDevices.getUserMedia({ audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true } });
+  } catch (e) { toast("Fikk ikke tilgang til mikrofonen: " + e.message, 5000); return; }
+  if (H.released) { H.stream.getTracks().forEach(t => t.stop()); toast("Mikrofonen er klar. Hold krysset inne for å ta opp."); return; }
+  const types = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"];
+  H.mime = types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+  H.rec = new MediaRecorder(H.stream, H.mime ? { mimeType: H.mime } : undefined);
+  H.chunks = [];
+  H.rec.ondataavailable = e => e.data.size && H.chunks.push(e.data);
+  H.rec.onstop = holdDone;
+  H.crossPos = map.getCenter();
+  H.rec.start(250); H.t0 = Date.now();
+  cross.classList.add("rec"); if (navigator.vibrate) navigator.vibrate(30);
+  H.tick = setInterval(() => {
+    const s = (Date.now() - H.t0) / 1000;
+    crossLabel(`● ${fmtTime(s)} / ${fmtTime(maxSeconds())}`);
+    if (s >= maxSeconds()) holdStop();
+  }, 200);
+  crossLabel(`● 0:00 / ${fmtTime(maxSeconds())}`);
+}
+function holdStop() {
+  H.released = true;
+  if (H.rec && H.rec.state !== "inactive") H.rec.stop();
+}
+function holdDone() {
+  clearInterval(H.tick); cross.classList.remove("rec"); crossLabel("Hold for å ta opp");
+  H.stream?.getTracks().forEach(t => t.stop());
+  const dur = (Date.now() - H.t0) / 1000;
+  const mime = (H.rec.mimeType || H.mime || "audio/webm").split(";")[0];
+  H.rec = null;
+  if (dur < 1) { toast("For kort opptak. Hold krysset inne mens du snakker."); return; }
+  R.crossPos = H.crossPos;
+  openRecorder({ recorded: { blob: new Blob(H.chunks, { type: mime }), mime, duration: Math.min(maxSeconds(), dur) } });
+}
+cross.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  if (!canRecord()) return;
+  try { cross.setPointerCapture(e.pointerId); } catch {}
+  H.down = Date.now();
+  H.timer = setTimeout(() => { H.timer = null; holdStart(); }, 350);
+});
+const release = () => {
+  if (H.timer) { clearTimeout(H.timer); H.timer = null; if (isReal()) { openRecorder({}); R.crossPos = map.getCenter(); setPos("map"); } return; }
+  holdStop();
+};
+cross.addEventListener("pointerup", release);
+cross.addEventListener("pointercancel", () => { if (H.timer) { clearTimeout(H.timer); H.timer = null; } holdStop(); });
+cross.addEventListener("contextmenu", e => e.preventDefault());
 
 // ================= Oppstart =================
 (async () => {

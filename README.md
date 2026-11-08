@@ -8,7 +8,7 @@ Web-appen (`index.html`) kjører på GitHub Pages og bruker Firebase til innlogg
 
 - **Lytte:** kart med spor, kategorifilter, varmekart (🔥), gå-modus som spiller spor som ligger foran deg, og bilmodus som slår seg på automatisk over ca. 25 km/t.
 - **Lyttescore:** andelen som hører et spor ferdig, der lyttinger mister halve vekten etter 30 dager. Nye spor får ekstra synlighet i 14 dager, og et svar gir sporet ny synlighet i 7 dager. Høy score gir større og tydeligere markør.
-- **Lage spor:** opptak (maks 90 s, 5 min for autoriserte) eller tekst som leses opp med telefonens stemme, med bilde, kategorier og plassering.
+- **Lage spor:** hold krysset midt i kartet inne for å ta opp der krysset står (trykk for tekst og flere valg). Opptak (maks 90 s, 5 min for autoriserte) eller tekst som leses opp med telefonens stemme, med bilde, kategorier og plassering.
 - **Deling:** bare meg, venner (de som har åpnet invitasjonslenken din) eller alle. Nye brukere kan dele med venner; deling med alle krever autorisert status.
 - **Skjulte spor:** vises ikke i kartet, men dukker opp når du er innen 40 m, eller når du har hørt forrige spor i samme sekvens.
 - **Sekvenser:** spor med sekvensnummer. Retningen beregnes fra rekkefølgen, og sporene spilles bare når du beveger deg samme vei.
@@ -19,7 +19,7 @@ Begrensning: i en nettleser stopper posisjon og avspilling når skjermen slås a
 ### Oppsett i Firebase
 
 1. Lim konfigurasjonen fra web-appen inn i `firebase-config.js`.
-2. **Authentication → Sign-in method:** slå på *Anonymous* og *Google*.
+2. **Authentication → Sign-in method:** slå på *Anonymous*, *Google* og *Email/Password*.
 3. **Authentication → Settings → Authorized domains:** legg til `geiringelerang-debug.github.io`.
 4. **Firestore → Rules:** lim inn `firestore.rules` og publiser.
 5. **Storage → Rules:** lim inn `storage.rules` og publiser.
