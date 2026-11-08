@@ -124,6 +124,11 @@
   .rec .dot { width: 12px; height: 12px; border-radius: 50%; background: #ccc; }
   .rec .dot.live { background: #e01; animation: blink 1s infinite; }
   @keyframes blink { 50% { opacity: .3; } }
+  .recbtn { background: #e01; color: #fff; font-size: 1.1rem; padding: .85rem 1.4rem; }
+  .imgpick { display: flex !important; align-items: center; justify-content: center; min-height: 64px; border: 2px dashed var(--line); border-radius: 12px; color: var(--ink) !important; font-size: .95rem !important; cursor: pointer; overflow: hidden; margin: 0 !important; }
+  .imgpick img { width: 100%; max-height: 200px; object-fit: cover; display: block; }
+  details { margin-top: .9rem; border-top: 1px solid var(--line); padding-top: .6rem; }
+  summary { font-size: .85rem; color: var(--accent); cursor: pointer; }
   .footer { display: flex; gap: .5rem; margin-top: 1rem; }
   .footer button { flex: 1; padding: .7rem; }
   .err { color: #c00; font-size: .82rem; margin-top: .5rem; }
@@ -190,17 +195,13 @@
 
 <!-- Nytt spor -->
 <div class="sheet-bg" id="rec-bg"><div class="sheet">
-  <h2 id="rec-title">Nytt lydspor</h2>
-  <div class="seg" id="rec-kind">
-    <button data-k="audio" class="on">🎙 Ta opp</button>
-    <button data-k="text">✍ Skriv tekst</button>
-  </div>
+  <div class="row"><h2 id="rec-title" style="flex:1">Nytt lydspor</h2><button id="rec-x" title="Lukk">✕</button></div>
 
   <div id="rec-audio">
     <div class="rec">
+      <button id="rec-start" class="recbtn">● Ta opp</button>
       <div class="dot" id="rec-dot"></div>
       <div class="time" id="rec-time">0:00</div>
-      <button id="rec-start" class="primary">Start opptak</button>
     </div>
     <div class="hint" id="rec-limit"></div>
     <audio id="rec-preview" controls style="width:100%; display:none; margin-top:.5rem"></audio>
@@ -211,22 +212,17 @@
     <div class="hint"><span id="rec-words">0 ord</span> · <a href="#" id="rec-speak">Hør prøve</a></div>
     <label style="display:flex; gap:.4rem; align-items:flex-start; color:var(--ink)"><input type="checkbox" id="rec-rights"> Jeg har skrevet teksten selv eller har rett til å bruke den.</label>
   </div>
+  <div class="hint"><a href="#" id="rec-switch">Vil du heller skrive en tekst som leses opp?</a></div>
+
+  <label>Bilde som vises når sporet spilles</label>
+  <label class="imgpick" for="rec-img">
+    <img id="rec-img-prev" alt="" style="display:none">
+    <span id="rec-img-txt">📷 Ta bilde eller velg fra telefonen</span>
+  </label>
+  <input type="file" id="rec-img" accept="image/*" style="display:none">
 
   <label for="rec-name">Tittel</label>
   <input type="text" id="rec-name" maxlength="80" placeholder="Hva handler sporet om?">
-  <label for="rec-desc">Kort beskrivelse (valgfritt)</label>
-  <input type="text" id="rec-desc" maxlength="200">
-  <label for="rec-tags">Kategorier (skilt med komma)</label>
-  <input type="text" id="rec-tags" placeholder="historie, natur">
-  <label>Bilde (valgfritt)</label>
-  <input type="file" id="rec-img" accept="image/*">
-
-  <label>Plassering</label>
-  <div class="seg" id="rec-pos">
-    <button data-p="me">📍 Min posisjon</button>
-    <button data-p="map">✚ Ved krysset</button>
-  </div>
-  <div class="hint" id="rec-pos-hint"></div>
 
   <label>Hvem kan høre det?</label>
   <div class="seg" id="rec-vis">
@@ -236,12 +232,27 @@
   </div>
   <div class="hint" id="rec-vis-hint"></div>
 
-  <label style="display:flex; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox" id="rec-hidden"> Skjult spor – vises ikke i kartet, må finnes</label>
+  <details id="rec-more">
+    <summary>Flere valg: beskrivelse, kategorier, plassering, skjult spor, sekvens</summary>
+    <label for="rec-desc">Kort beskrivelse</label>
+    <input type="text" id="rec-desc" maxlength="200">
+    <label for="rec-tags">Kategorier (skilt med komma)</label>
+    <input type="text" id="rec-tags" placeholder="historie, natur">
 
-  <label for="rec-seq">Del av en sekvens</label>
-  <select id="rec-seq"></select>
-  <input type="text" id="rec-seq-name" placeholder="Navn på ny sekvens, f.eks. «Fister–Hjelmeland»" style="display:none; margin-top:.4rem">
-  <div class="hint">Spor i en sekvens spilles bare når du beveger deg i samme retning som sekvensen går. Lag én sekvens for hver kjøreretning.</div>
+    <label>Plassering</label>
+    <div class="seg" id="rec-pos">
+      <button data-p="me">📍 Min posisjon</button>
+      <button data-p="map">✚ Ved krysset</button>
+    </div>
+    <div class="hint" id="rec-pos-hint"></div>
+
+    <label style="display:flex; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox" id="rec-hidden"> Skjult spor – vises ikke i kartet, må finnes</label>
+
+    <label for="rec-seq">Del av en sekvens</label>
+    <select id="rec-seq"></select>
+    <input type="text" id="rec-seq-name" placeholder="Navn på ny sekvens, f.eks. «Fister–Hjelmeland»" style="display:none; margin-top:.4rem">
+    <div class="hint">Spor i en sekvens spilles bare når du beveger deg i samme retning som sekvensen går. Lag én sekvens for hver kjøreretning.</div>
+  </details>
 
   <div class="err" id="rec-err"></div>
   <div class="footer">
@@ -915,7 +926,8 @@ function openRecorder({ replyTo = null, recorded = null } = {}) {
   $("rec-title").textContent = replyTo ? `Svar på «${replyTo.title || "spor"}»` : "Nytt lydspor";
   ["rec-name", "rec-desc", "rec-tags", "rec-textarea", "rec-seq-name"].forEach(id => $(id).value = "");
   if (replyTo) $("rec-name").value = "Svar: " + (replyTo.title || "");
-  $("rec-img").value = ""; $("rec-hidden").checked = false; $("rec-rights").checked = false;
+  $("rec-img").value = ""; $("rec-img-prev").style.display = "none"; $("rec-img-txt").style.display = ""; $("rec-more").open = false;
+  $("rec-hidden").checked = false; $("rec-rights").checked = false;
   $("rec-preview").style.display = "none"; $("rec-time").textContent = "0:00"; $("rec-err").textContent = "";
   $("rec-limit").textContent = `Maks ${fmtTime(maxSeconds())}. Støy dempes automatisk av nettleseren.`;
   $("rec-pos").parentElement.querySelectorAll("#rec-pos, #rec-pos-hint").forEach(el => el.style.display = replyTo ? "none" : "");
@@ -929,13 +941,14 @@ function openRecorder({ replyTo = null, recorded = null } = {}) {
   if (recorded) {
     Object.assign(R, recorded);
     $("rec-preview").src = URL.createObjectURL(R.blob); $("rec-preview").style.display = "block";
-    $("rec-time").textContent = fmtTime(R.duration); $("rec-start").textContent = "Ta opp på nytt";
-  } else $("rec-start").textContent = "Start opptak";
+    $("rec-time").textContent = fmtTime(R.duration); $("rec-start").textContent = "↺ Ta opp på nytt";
+  } else $("rec-start").textContent = "● Ta opp";
   $("rec-bg").classList.add("show");
   if (recorded) setTimeout(() => $("rec-name").focus(), 300);
 }
 function setKind(k) {
-  R.kind = k; seg("rec-kind", "k", k);
+  R.kind = k;
+  $("rec-switch").textContent = k === "audio" ? "Vil du heller skrive en tekst som leses opp?" : "Vil du heller ta opp lyd?";
   $("rec-audio").style.display = k === "audio" ? "" : "none";
   $("rec-text").style.display = k === "text" ? "" : "none";
 }
@@ -951,7 +964,12 @@ function setVis(v) {
   $("rec-vis").querySelector('[data-v="public"]').disabled = !canPublic();
   $("rec-vis-hint").textContent = v === "private" ? "Bare du kan høre sporet." : v === "friends" ? `Dine ${members.length} venner kan høre sporet.` : "Alle kan høre sporet.";
 }
-$("rec-kind").onclick = e => e.target.dataset.k && setKind(e.target.dataset.k);
+$("rec-switch").onclick = e => { e.preventDefault(); setKind(R.kind === "audio" ? "text" : "audio"); };
+$("rec-x").onclick = () => $("rec-cancel").click();
+$("rec-img").onchange = () => {
+  const f = $("rec-img").files[0];
+  if (f) { $("rec-img-prev").src = URL.createObjectURL(f); $("rec-img-prev").style.display = "block"; $("rec-img-txt").style.display = "none"; }
+};
 $("rec-pos").onclick = e => e.target.dataset.p && setPos(e.target.dataset.p);
 $("rec-vis").onclick = e => e.target.dataset.v && setVis(e.target.dataset.v);
 $("rec-seq").onchange = () => $("rec-seq-name").style.display = $("rec-seq").value === "new" ? "" : "none";
@@ -979,10 +997,10 @@ async function startRecording() {
       R.blob = new Blob(chunks, { type: R.mime });
       R.duration = Math.min(maxSeconds(), (Date.now() - t0) / 1000);
       $("rec-preview").src = URL.createObjectURL(R.blob); $("rec-preview").style.display = "block";
-      $("rec-dot").classList.remove("live"); $("rec-start").textContent = "Ta opp på nytt"; R.recorder = null;
+      $("rec-dot").classList.remove("live"); $("rec-start").textContent = "↺ Ta opp på nytt"; R.recorder = null;
     };
     rec.start(250); R.recorder = rec;
-    $("rec-dot").classList.add("live"); $("rec-start").textContent = "Stopp"; $("rec-preview").style.display = "none";
+    $("rec-dot").classList.add("live"); $("rec-start").textContent = "■ Stopp"; $("rec-preview").style.display = "none";
     R.timer = setInterval(() => {
       const s = (Date.now() - t0) / 1000;
       $("rec-time").textContent = `${fmtTime(s)} / ${fmtTime(maxSeconds())}`;
