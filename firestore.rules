@@ -1,0 +1,88 @@
+rules_version = '2';
+// SoundPin – Firestore-regler (versjon 2)
+// Limes inn i Firebase-konsollen: Build → Firestore Database → Rules → Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function realUser() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function isAdmin() {
+      return realUser() && request.auth.token.email == 'geiringelerang@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function profile() {
+      return get(/databases/$(database)/documents/sp_users/$(request.auth.uid)).data;
+    }
+    function hasProfile() {
+      return exists(/databases/$(database)/documents/sp_users/$(request.auth.uid));
+    }
+    function canPublic() {
+      return isAdmin() || (realUser() && hasProfile() && profile().role in ['authorized', 'verifier', 'admin']);
+    }
+    function isVerifier() {
+      return isAdmin() || (realUser() && hasProfile() && profile().role in ['verifier', 'admin']);
+    }
+
+    // ---- Gamle data fra iOS-appen ----
+    match /pins/{id} {
+      allow read: if true;
+      allow write: if realUser();
+    }
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ---- Brukerprofiler ----
+    match /sp_users/{uid} {
+      allow read: if signedIn();
+      allow create: if realUser() && request.auth.uid == uid && request.resource.data.role == 'user';
+      allow update: if (realUser() && request.auth.uid == uid
+                        && request.resource.data.role == resource.data.role)
+                    || isAdmin();
+      allow delete: if isAdmin();
+
+      // Venner: de som har åpnet invitasjonslenken til uid
+      match /members/{m} {
+        allow read: if signedIn() && (request.auth.uid == uid || request.auth.uid == m);
+        allow create: if realUser() && request.auth.uid == m
+          && request.resource.data.k == get(/databases/$(database)/documents/sp_users/$(uid)).data.inviteCode;
+        allow delete: if signedIn() && (request.auth.uid == uid || request.auth.uid == m);
+      }
+    }
+
+    // ---- Lydspor ----
+    match /sp_tracks/{id} {
+      allow read: if resource.data.visibility == 'public'
+        || (signedIn() && (resource.data.creator == request.auth.uid
+                           || request.auth.uid in resource.data.allowed));
+      allow create: if realUser()
+        && request.resource.data.creator == request.auth.uid
+        && request.resource.data.visibility in ['private', 'friends', 'public']
+        && (request.resource.data.visibility != 'public' || canPublic())
+        && request.resource.data.label == 'local';
+      allow update: if (realUser() && resource.data.creator == request.auth.uid
+                        && request.resource.data.creator == resource.data.creator
+                        && request.resource.data.label == resource.data.label
+                        && (request.resource.data.visibility != 'public' || canPublic()))
+                    || (isVerifier()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['label'])
+                        && request.resource.data.label in ['local', 'verified']);
+      allow delete: if (realUser() && resource.data.creator == request.auth.uid) || isAdmin();
+    }
+
+    // ---- Lyttescore ----
+    match /sp_stats/{id} {
+      allow read: if true;
+      allow write: if signedIn()
+        && request.resource.data.keys().hasOnly(['s', 'c', 'r', 't', 'boost']);
+    }
+
+    // ---- Rapporter ----
+    match /sp_reports/{id} {
+      allow create: if signedIn();
+      allow read, delete: if isAdmin();
+    }
+  }
+}

@@ -9,46 +9,131 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
 <style>
-  :root { --accent: #e4572e; --ink: #1d1d1f; --muted: #6e6e73; --bg: #fff; }
+  :root {
+    --accent: #e4572e; --ink: #1d1d1f; --muted: #6e6e73; --bg: #fff; --line: #e5e5ea;
+    --local: #e4572e; --verified: #1e9e57; --ai: #7a5cff;
+  }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; font-family: system-ui, -apple-system, sans-serif; color: var(--ink); }
   #map { position: absolute; inset: 0; }
 
   header {
     position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
-    padding: calc(env(safe-area-inset-top) + .6rem) .8rem .6rem;
+    padding: calc(env(safe-area-inset-top) + .6rem) .8rem .55rem;
     background: linear-gradient(#fffffff2, #ffffffd9); backdrop-filter: blur(8px);
     box-shadow: 0 1px 6px #0002;
   }
-  .row { display: flex; align-items: center; gap: .5rem; }
+  .row { display: flex; align-items: center; gap: .4rem; }
   h1 { font-size: 1.15rem; margin: 0; flex: 1; letter-spacing: -.01em; }
   h1 span { color: var(--accent); }
   button {
-    font: inherit; font-size: .9rem; border: 0; border-radius: 999px; padding: .5rem .9rem;
+    font: inherit; font-size: .9rem; border: 0; border-radius: 999px; padding: .5rem .85rem;
     background: #eee; color: var(--ink); cursor: pointer; white-space: nowrap;
   }
-  button.on { background: var(--accent); color: #fff; }
-  #tags { display: flex; gap: .35rem; overflow-x: auto; margin-top: .55rem; padding-bottom: .15rem; scrollbar-width: none; }
+  button.on, button.primary { background: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  #tags { display: flex; gap: .35rem; overflow-x: auto; margin-top: .5rem; padding-bottom: .15rem; scrollbar-width: none; }
   #tags::-webkit-scrollbar { display: none; }
   #tags button { font-size: .8rem; padding: .3rem .7rem; }
-  #status { font-size: .78rem; color: var(--muted); margin-top: .35rem; }
+  #status { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+  #me-btn img { width: 22px; height: 22px; border-radius: 50%; vertical-align: middle; object-fit: cover; }
+  #me-btn { padding: .4rem .6rem; }
 
+  #fab {
+    position: absolute; right: .9rem; bottom: calc(env(safe-area-inset-bottom) + 6.5rem); z-index: 1000;
+    width: 58px; height: 58px; border-radius: 50%; font-size: 1.5rem; padding: 0;
+    background: var(--accent); color: #fff; box-shadow: 0 4px 16px #0004;
+  }
+  body.has-player #fab { display: none; }
+
+  /* Markører */
+  .pin {
+    width: var(--s, 32px); height: var(--s, 32px); border-radius: 50%; background: #fff;
+    border: 3px solid var(--local); box-shadow: 0 1px 4px #0005; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; font-size: calc(var(--s, 32px) * .5);
+    transform: translate(-50%, -50%); opacity: var(--o, 1);
+  }
+  .pin img { width: 100%; height: 100%; object-fit: cover; }
+  .pin.verified { border-color: var(--verified); }
+  .pin.ai { border-color: var(--ai); }
+  .pin.heard { filter: grayscale(1); opacity: .4; }
+  .pin.secret { border-style: dashed; }
+  .me { width: 18px; height: 18px; border-radius: 50%; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 0 0 6px #1a73e855; }
+  .me.dir::after {
+    content: ""; position: absolute; left: 50%; top: -13px; transform: translateX(-50%) rotate(var(--rot));
+    transform-origin: 50% 19px; border: 6px solid transparent; border-bottom: 10px solid #1a73e8;
+  }
+
+  /* Spiller */
   #player {
-    position: absolute; left: .6rem; right: .6rem; bottom: calc(env(safe-area-inset-bottom) + .6rem); z-index: 1000;
+    position: absolute; left: .6rem; right: .6rem; bottom: calc(env(safe-area-inset-bottom) + .6rem); z-index: 1001;
     background: var(--bg); border-radius: 16px; box-shadow: 0 4px 24px #0003; overflow: hidden;
-    display: none; max-width: 520px; margin: 0 auto;
+    display: none; max-width: 520px; margin: 0 auto; max-height: 78vh; overflow-y: auto;
   }
   #player.show { display: block; }
-  #player img { width: 100%; max-height: 38vh; object-fit: cover; display: block; background: #f2f2f2; }
+  #player img.cover { width: 100%; max-height: 32vh; object-fit: cover; display: block; background: #f2f2f2; }
   #player .body { padding: .8rem 1rem 1rem; }
   #player h2 { font-size: 1.05rem; margin: 0 0 .2rem; }
   #player p { margin: 0 0 .5rem; color: var(--muted); font-size: .88rem; }
-  #player .meta { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
+  .meta { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
   #player audio { width: 100%; }
-  #player .close { position: absolute; top: .5rem; right: .5rem; background: #000a; color: #fff; padding: .3rem .65rem; }
+  #player .close { position: absolute; top: .5rem; right: .5rem; background: #000a; color: #fff; padding: .3rem .65rem; z-index: 2; }
+  .actions { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .6rem; }
+  .actions button { font-size: .8rem; padding: .35rem .7rem; }
+  .badge { display: inline-block; font-size: .7rem; padding: .1rem .45rem; border-radius: 999px; color: #fff; background: var(--local); margin-right: .3rem; }
+  .badge.verified { background: var(--verified); } .badge.ai { background: var(--ai); } .badge.grey { background: #8e8e93; }
+  .tts { display: flex; align-items: center; gap: .6rem; background: #f4f4f6; border-radius: 10px; padding: .5rem .7rem; font-size: .85rem; }
+  .replies { margin-top: .7rem; border-top: 1px solid var(--line); padding-top: .5rem; }
+  .replies h3 { font-size: .85rem; margin: 0 0 .3rem; }
+  .reply { display: flex; align-items: center; gap: .5rem; font-size: .82rem; padding: .25rem 0; }
+  .reply button { padding: .25rem .6rem; font-size: .8rem; }
 
-  .pin-heard { filter: grayscale(1); opacity: .45; }
-  .me { width: 18px; height: 18px; border-radius: 50%; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 0 0 6px #1a73e855; }
+  /* Ark (dialoger) */
+  .sheet-bg { position: fixed; inset: 0; background: #0006; z-index: 2000; display: none; }
+  .sheet-bg.show { display: block; }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 92vh; overflow-y: auto;
+    background: #fff; border-radius: 18px 18px 0 0; padding: 1rem 1rem calc(env(safe-area-inset-bottom) + 1rem);
+    max-width: 560px; margin: 0 auto;
+  }
+  .sheet h2 { margin: 0 0 .6rem; font-size: 1.1rem; }
+  .sheet label { display: block; font-size: .82rem; color: var(--muted); margin: .7rem 0 .25rem; }
+  .sheet input[type=text], .sheet textarea, .sheet select {
+    width: 100%; font: inherit; font-size: .95rem; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+  }
+  .sheet textarea { min-height: 7rem; resize: vertical; }
+  .seg { display: flex; gap: .35rem; flex-wrap: wrap; }
+  .seg button { flex: 1; }
+  .hint { font-size: .75rem; color: var(--muted); margin-top: .25rem; }
+  .rec { display: flex; align-items: center; gap: .7rem; margin-top: .4rem; }
+  .rec .time { font-variant-numeric: tabular-nums; font-size: 1.3rem; min-width: 5.5rem; }
+  .rec .dot { width: 12px; height: 12px; border-radius: 50%; background: #ccc; }
+  .rec .dot.live { background: #e01; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: .3; } }
+  .footer { display: flex; gap: .5rem; margin-top: 1rem; }
+  .footer button { flex: 1; padding: .7rem; }
+  .err { color: #c00; font-size: .82rem; margin-top: .5rem; }
+  .list-row { display: flex; align-items: center; gap: .5rem; padding: .35rem 0; border-bottom: 1px solid var(--line); font-size: .85rem; }
+  .list-row > span { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .list-row img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+  .icon-preview { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 3px solid var(--local); background: #f2f2f2; }
+
+  /* Bilmodus */
+  #car {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1500; display: none;
+    background: #111; color: #fff; padding: 1.1rem 1.2rem calc(env(safe-area-inset-bottom) + 1.1rem);
+  }
+  body.car #car { display: block; }
+  body.car #fab, body.car #player, body.car #tags { display: none !important; }
+  #car .speed { font-size: .9rem; opacity: .7; }
+  #car .now { font-size: 1.6rem; font-weight: 600; margin: .3rem 0; line-height: 1.2; }
+  #car .next { font-size: 1rem; opacity: .8; }
+  #car button { position: absolute; top: .8rem; right: .8rem; background: #333; color: #fff; }
+
+  #toast {
+    position: fixed; left: 50%; top: 5.5rem; transform: translateX(-50%); z-index: 3000;
+    background: #222; color: #fff; padding: .55rem .9rem; border-radius: 10px; font-size: .85rem; display: none; max-width: 90vw;
+  }
 </style>
 </head>
 <body>
@@ -57,186 +142,879 @@
 <header>
   <div class="row">
     <h1>Sound<span>Pin</span></h1>
-    <button id="walk" title="Spiller automatisk av nærmeste spor mens du går">🚶 Gå-modus</button>
-    <button id="reset" title="Vis alle spor igjen">↺</button>
+    <button id="walk" title="Spiller automatisk av spor foran deg mens du beveger deg">🚶 Gå</button>
+    <button id="carbtn" title="Bilmodus">🚗</button>
+    <button id="heat" title="Varmekart over hvor det finnes mange spor">🔥</button>
+    <button id="me-btn" title="Profil og innlogging">👤</button>
   </div>
   <div id="tags"></div>
   <div id="status">Laster …</div>
 </header>
 
+<button id="fab" title="Nytt lydspor">🎙</button>
+
 <div id="player">
   <button class="close" id="close">✕</button>
-  <img id="p-img" alt="">
+  <img id="p-img" class="cover" alt="">
   <div class="body">
     <h2 id="p-name"></h2>
     <p id="p-desc"></p>
     <div class="meta" id="p-meta"></div>
     <audio id="audio" controls preload="none"></audio>
+    <div class="tts" id="p-tts" style="display:none"><button id="tts-btn">▶</button><span>Leses opp med telefonens stemme</span></div>
+    <div class="actions" id="p-actions"></div>
+    <div class="replies" id="p-replies" style="display:none"></div>
   </div>
 </div>
 
+<div id="car">
+  <button id="car-off">Avslutt</button>
+  <div class="speed" id="car-speed">Bilmodus</div>
+  <div class="now" id="car-now">Kjør trygt – spor spilles av automatisk</div>
+  <div class="next" id="car-next"></div>
+</div>
+
+<!-- Nytt spor -->
+<div class="sheet-bg" id="rec-bg"><div class="sheet">
+  <h2 id="rec-title">Nytt lydspor</h2>
+  <div class="seg" id="rec-kind">
+    <button data-k="audio" class="on">🎙 Ta opp</button>
+    <button data-k="text">✍ Skriv tekst</button>
+  </div>
+
+  <div id="rec-audio">
+    <div class="rec">
+      <div class="dot" id="rec-dot"></div>
+      <div class="time" id="rec-time">0:00</div>
+      <button id="rec-start" class="primary">Start opptak</button>
+    </div>
+    <div class="hint" id="rec-limit"></div>
+    <audio id="rec-preview" controls style="width:100%; display:none; margin-top:.5rem"></audio>
+  </div>
+
+  <div id="rec-text" style="display:none">
+    <textarea id="rec-textarea" placeholder="Skriv eller lim inn teksten som skal leses opp."></textarea>
+    <div class="hint"><span id="rec-words">0 ord</span> · <a href="#" id="rec-speak">Hør prøve</a></div>
+    <label style="display:flex; gap:.4rem; align-items:flex-start; color:var(--ink)"><input type="checkbox" id="rec-rights"> Jeg har skrevet teksten selv eller har rett til å bruke den.</label>
+  </div>
+
+  <label for="rec-name">Tittel</label>
+  <input type="text" id="rec-name" maxlength="80" placeholder="Hva handler sporet om?">
+  <label for="rec-desc">Kort beskrivelse (valgfritt)</label>
+  <input type="text" id="rec-desc" maxlength="200">
+  <label for="rec-tags">Kategorier (skilt med komma)</label>
+  <input type="text" id="rec-tags" placeholder="historie, natur">
+  <label>Bilde (valgfritt)</label>
+  <input type="file" id="rec-img" accept="image/*">
+
+  <label>Plassering</label>
+  <div class="seg" id="rec-pos">
+    <button data-p="me">📍 Min posisjon</button>
+    <button data-p="map">🗺 Midt i kartet</button>
+  </div>
+  <div class="hint" id="rec-pos-hint"></div>
+
+  <label>Hvem kan høre det?</label>
+  <div class="seg" id="rec-vis">
+    <button data-v="private">Bare meg</button>
+    <button data-v="friends" class="on">Venner</button>
+    <button data-v="public">Alle</button>
+  </div>
+  <div class="hint" id="rec-vis-hint"></div>
+
+  <label style="display:flex; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox" id="rec-hidden"> Skjult spor – vises ikke i kartet, må finnes</label>
+
+  <label for="rec-seq">Del av en sekvens</label>
+  <select id="rec-seq"></select>
+  <input type="text" id="rec-seq-name" placeholder="Navn på ny sekvens, f.eks. «Fister–Hjelmeland»" style="display:none; margin-top:.4rem">
+  <div class="hint">Spor i en sekvens spilles bare når du beveger deg i samme retning som sekvensen går. Lag én sekvens for hver kjøreretning.</div>
+
+  <div class="err" id="rec-err"></div>
+  <div class="footer">
+    <button id="rec-cancel">Avbryt</button>
+    <button id="rec-save" class="primary">Lagre</button>
+  </div>
+</div></div>
+
+<!-- Profil -->
+<div class="sheet-bg" id="prof-bg"><div class="sheet" id="prof"></div></div>
+
+<div id="toast"></div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-<script>
-// ---- Innstillinger ----
-const TRIGGER_RADIUS_M = 60;   // gå-modus: spill av når du er så nær et spor
-const WALK_VISIBLE = 15;       // gå-modus: vis bare de N nærmeste uhørte sporene
-const HIDDEN_TAGS = ["test", "personal messsage", "lifelog", "hytte", "eiendom", "db"]; // skjult som standard
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script type="module">
+import { firebaseConfig, ADMIN_EMAIL } from "./firebase-config.js";
 
-// ---- Tilstand ----
+// ================= Innstillinger =================
+const WALK_VISIBLE = 15;            // vis bare de N mest relevante uhørte sporene i gå-modus
+const MIN_TRIGGER_M = 50;           // minste utløsningsavstand
+const LEAD_SECONDS = 20;            // spill av så tidlig at sporet starter ca. 20 s før du er fremme
+const AHEAD_DEG = 70;               // sporet må ligge innenfor ±70° av kursen når du beveger deg
+const SEQ_DEG = 60;                 // sekvensspor: kursen må være innenfor ±60° av sekvensens retning
+const SECRET_REVEAL_M = 40;         // skjulte spor dukker opp når du er så nær
+const CAR_SPEED = 7;                // m/s (≈25 km/t) – over dette går appen i bilmodus
+const CAR_MAX_SECONDS = 95;         // i bilmodus spilles bare korte spor
+const MAX_SECONDS_USER = 90;        // vanlige brukere
+const MAX_SECONDS_AUTH = 300;       // autoriserte brukere og organisasjoner
+const WORDS_PER_90S = 225;
+const HALF_LIFE_DAYS = 30;          // lyttinger mister halve vekten etter 30 dager
+const NEW_BOOST_DAYS = 14;          // nye spor får ekstra synlighet i 14 dager
+const REPLY_BOOST_DAYS = 7;         // et svar gir sporet ny synlighet i 7 dager
+const HIDDEN_TAGS = ["test", "personal messsage", "lifelog", "hytte", "eiendom", "db"];
+const DAY = 864e5;
+
+// ================= Tilstand =================
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-let pins = [];
-let heard = new Set(store.get("sp-heard", []));
-let activeTag = null;
-let walking = false;
-let me = null;          // {lat, lng}
-let meMarker = null;
-let watchId = null;
-let current = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-const map = L.map("map", { zoomControl: false }).setView([59.0, 6.0], 8);
+let tracks = [];                    // alle spor (arkiv + nye)
+let byId = new Map();
+let stats = {};                     // id → {s, c, r, t, boost}
+let heard = new Set(store.get("sp-heard", []));
+let revealed = new Set(store.get("sp-revealed", []));
+let startedThisSession = new Set();
+let activeTag = null, walking = false, heatOn = false, carMode = false, carManual = false;
+let me = null, meMarker = null, watchId = null, course = null, speed = 0, lastFix = null, fastCount = 0, slowSince = null;
+let current = null;
+let fb = null;                      // Firebase-moduler når de er lastet
+let user = null, profile = null, members = [];
+
+const map = L.map("map", { zoomControl: false }).setView([59.0, 5.9], 9);
 L.control.zoom({ position: "bottomright" }).addTo(map);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19, attribution: "© OpenStreetMap"
-}).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map);
 const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 45 });
 map.addLayer(cluster);
-
-const $ = id => document.getElementById(id);
+let heatLayer = null;
 const audio = $("audio");
 
-// ---- Hjelpere ----
+function toast(msg, ms = 2800) {
+  const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = "none", ms);
+}
+
+// ================= Geometri =================
+const rad = x => x * Math.PI / 180, deg = x => x * 180 / Math.PI;
 function dist(a, b) {
-  const R = 6371000, r = x => x * Math.PI / 180;
-  const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
+  const R = 6371000, dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
+function bearing(a, b) {
+  const y = Math.sin(rad(b.lng - a.lng)) * Math.cos(rad(b.lat));
+  const x = Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) - Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(rad(b.lng - a.lng));
+  return (deg(Math.atan2(y, x)) + 360) % 360;
+}
+const angleDiff = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
 const fmtDist = m => m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
-const isHiddenByDefault = p => p.tags.some(t => HIDDEN_TAGS.includes(t));
 
-function visiblePins() {
-  let list = pins.filter(p => p.audioUrl && p.lat != null);
-  if (activeTag) list = list.filter(p => p.tags.includes(activeTag));
-  else list = list.filter(p => !isHiddenByDefault(p));
+// ================= Lyttescore =================
+function decayed(st, now = Date.now()) {
+  const f = st && st.t ? Math.pow(0.5, (now - st.t) / (HALF_LIFE_DAYS * DAY)) : 1;
+  return { s: (st?.s || 0) * f, c: (st?.c || 0) * f, r: (st?.r || 0) * f };
+}
+// 0–1. Nye spor starter høyt og synker hvis folk ikke hører dem ferdig.
+function quality(t) {
+  const st = stats[t.id] || {};
+  const d = decayed(st);
+  const prior = 0.7, weight = 3;
+  let q = (d.c + prior * weight) / (d.s + weight);
+  const boostUntil = Math.max(st.boost || 0, t.createdAt ? t.createdAt + NEW_BOOST_DAYS * DAY : 0);
+  if (Date.now() < boostUntil) q += 0.25;
+  q += Math.min(0.15, d.r * 0.05);
+  return Math.max(0.05, Math.min(1, q));
+}
+async function bump(id, field, extra = {}) {
+  const now = Date.now();
+  const local = stats[id] || {};
+  const d = decayed(local, now); d[field] += 1;
+  stats[id] = { ...d, t: now, boost: Math.max(local.boost || 0, extra.boost || 0) };
+  if (!fb || !user) return;
+  try {
+    const r = fb.doc(fb.db, "sp_stats", id);
+    await fb.runTransaction(fb.db, async tx => {
+      const snap = await tx.get(r);
+      const st = snap.exists() ? snap.data() : {};
+      const dd = decayed(st, now); dd[field] += 1;
+      const next = { s: dd.s, c: dd.c, r: dd.r, t: now, boost: Math.max(st.boost || 0, extra.boost || 0) };
+      tx.set(r, next);
+      stats[id] = next;
+    });
+  } catch (e) { console.warn("Lyttescore ikke lagret", e); }
+}
+
+// ================= Utvalg og relevans =================
+const isHiddenByDefault = t => t.tags.some(x => HIDDEN_TAGS.includes(x));
+const playable = t => (t.audioUrl || (t.kind === "text" && t.text)) && t.lat != null && !t.replyTo;
+function secretVisible(t) {
+  if (!t.hidden) return true;
+  if (revealed.has(t.id) || heard.has(t.id) || (user && t.creator === user.uid)) return true;
+  if (t.seqId && t.seqNo > 1) {
+    const prev = tracks.find(x => x.seqId === t.seqId && x.seqNo === t.seqNo - 1);
+    if (prev && heard.has(prev.id)) return true;
+  }
+  return false;
+}
+function baseList() {
+  let list = tracks.filter(playable);
+  if (activeTag) list = list.filter(t => t.tags.includes(activeTag));
+  else list = list.filter(t => !isHiddenByDefault(t));
+  return list;
+}
+function relevance(t) {
+  const q = quality(t);
+  if (!me) return q;
+  const d = dist(me, t);
+  return q / (1 + d / 400);
+}
+function visibleTracks() {
+  let list = baseList().filter(secretVisible);
   if (walking) {
-    list = list.filter(p => !heard.has(p.id));
-    if (me) list = list.map(p => ({ p, d: dist(me, p) })).sort((a, b) => a.d - b.d).slice(0, WALK_VISIBLE).map(x => x.p);
+    list = list.filter(t => !heard.has(t.id));
+    if (me) list = list.map(t => ({ t, r: relevance(t) })).sort((a, b) => b.r - a.r).slice(0, WALK_VISIBLE).map(x => x.t);
   }
   return list;
 }
 
+// ================= Kart =================
+function markerFor(t) {
+  const q = quality(t);
+  const size = Math.round(24 + 18 * q);
+  const cls = ["pin", t.label === "verified" ? "verified" : t.label === "ai" ? "ai" : "", heard.has(t.id) ? "heard" : "", t.hidden ? "secret" : ""].join(" ");
+  const inner = t.creatorIcon ? `<img src="${esc(t.creatorIcon)}" alt="">` : (t.kind === "text" ? "✍" : t.hidden ? "🗝" : "🔊");
+  const icon = L.divIcon({ className: "", html: `<div class="${cls}" style="--s:${size}px; --o:${(0.55 + 0.45 * q).toFixed(2)}">${inner}</div>`, iconSize: [0, 0] });
+  const m = L.marker([t.lat, t.lng], { icon, title: t.title || "" });
+  m.on("click", () => play(t));
+  return m;
+}
 function render() {
+  const list = visibleTracks();
   cluster.clearLayers();
-  const list = visiblePins();
-  const markers = list.map(p => {
-    const m = L.marker([p.lat, p.lng], { title: p.name || "" });
-    m.on("add", () => m._icon && m._icon.classList.toggle("pin-heard", heard.has(p.id)));
-    m.on("click", () => play(p));
-    return m;
-  });
-  cluster.addLayers(markers);
-  const total = pins.filter(p => p.audioUrl).length;
-  $("status").textContent = walking
-    ? (me ? `Gå-modus: ${list.length} nærmeste uhørte spor · ${heard.size} hørt` : "Venter på posisjon …")
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+  if (heatOn) {
+    // Varmekart: alle spor unntatt skjulte, uavhengig av 15-grensen
+    const pts = baseList().filter(t => !t.hidden).map(t => [t.lat, t.lng, 0.6]);
+    heatLayer = L.heatLayer(pts, { radius: 22, blur: 18, maxZoom: 15 }).addTo(map);
+  } else {
+    cluster.addLayers(list.map(markerFor));
+  }
+  const total = tracks.filter(playable).length;
+  $("status").textContent = heatOn ? `Varmekart · ${total} spor`
+    : walking ? (me ? `Gå-modus: ${list.length} mest relevante uhørte spor · ${heard.size} hørt` : "Venter på posisjon …")
     : `${list.length} av ${total} spor${activeTag ? ` med «${activeTag}»` : ""} · ${heard.size} hørt`;
 }
-
 function renderTags() {
   const counts = {};
-  pins.forEach(p => p.tags.forEach(t => counts[t] = (counts[t] || 0) + 1));
-  const top = Object.entries(counts).filter(([t, n]) => n >= 5 && !HIDDEN_TAGS.includes(t))
-    .sort((a, b) => b[1] - a[1]).map(([t]) => t);
-  const box = $("tags");
-  box.innerHTML = "";
+  tracks.forEach(t => t.tags.forEach(x => counts[x] = (counts[x] || 0) + 1));
+  const top = Object.entries(counts).filter(([x, n]) => n >= 3 && !HIDDEN_TAGS.includes(x)).sort((a, b) => b[1] - a[1]).map(([x]) => x);
+  const box = $("tags"); box.innerHTML = "";
   const mk = (label, tag) => {
     const b = document.createElement("button");
-    b.textContent = label;
-    b.className = activeTag === tag ? "on" : "";
+    b.textContent = label; b.className = activeTag === tag ? "on" : "";
     b.onclick = () => { activeTag = tag; renderTags(); render(); };
     box.appendChild(b);
   };
-  mk("Alle", null);
-  top.forEach(t => mk(t, t));
+  mk("Alle", null); top.forEach(x => mk(x, x));
 }
 
-function play(p) {
-  current = p;
-  $("p-name").textContent = p.name || "Uten navn";
-  $("p-desc").textContent = p.description || "";
-  const bits = [];
-  if (p.tags.length) bits.push(p.tags.join(" · "));
-  if (me) bits.push(fmtDist(dist(me, p)) + " unna");
-  if (p.createdAt) bits.push(p.createdAt.slice(0, 10));
-  $("p-meta").textContent = bits.join("  ·  ");
-  const img = $("p-img");
-  if (p.imageUrl) { img.src = p.imageUrl; img.style.display = "block"; }
-  else { img.removeAttribute("src"); img.style.display = "none"; }
-  $("player").classList.add("show");
-  audio.src = p.audioUrl;
-  audio.play().catch(() => {});
-  if (!walking) map.panTo([p.lat, p.lng]);
+// ================= Avspilling =================
+const LABELS = { local: "Fortalt av lokale", verified: "Verifisert", ai: "AI-generert" };
+let speaking = false;
+function stopAll() {
+  audio.pause();
+  if (window.speechSynthesis) speechSynthesis.cancel();
+  speaking = false;
 }
-
-audio.addEventListener("ended", () => {
-  if (!current) return;
-  heard.add(current.id);
-  store.set("sp-heard", [...heard]);
+function onStarted(t) {
+  if (!startedThisSession.has(t.id)) { startedThisSession.add(t.id); bump(t.id, "s"); }
+}
+function onCompleted(t) {
+  heard.add(t.id); store.set("sp-heard", [...heard]);
+  bump(t.id, "c");
   render();
-  if (walking) checkNearby();
-});
-
-$("close").onclick = () => { audio.pause(); $("player").classList.remove("show"); current = null; };
-$("reset").onclick = () => {
-  if (!confirm("Nullstille hørte spor?")) return;
-  heard = new Set(); store.set("sp-heard", []); render();
+  if (walking) setTimeout(checkNearby, 800);
+}
+function speak(t) {
+  if (!window.speechSynthesis) { toast("Nettleseren kan ikke lese opp tekst."); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(t.text);
+  u.lang = "nb-NO";
+  const v = speechSynthesis.getVoices().find(v => /^(nb|no|nn)/i.test(v.lang));
+  if (v) u.voice = v;
+  u.onstart = () => { speaking = true; $("tts-btn").textContent = "⏸"; if (t.id !== "_preview") onStarted(t); };
+  u.onend = () => { const done = speaking; speaking = false; $("tts-btn").textContent = "▶"; if (done && current === t) onCompleted(t); };
+  speechSynthesis.speak(u);
+}
+function play(t) {
+  stopAll();
+  current = t;
+  if (t.hidden && !revealed.has(t.id)) { revealed.add(t.id); store.set("sp-revealed", [...revealed]); }
+  $("p-name").textContent = t.title || "Uten navn";
+  $("p-desc").textContent = t.desc || "";
+  const lbl = t.label || "local";
+  const bits = [];
+  if (t.creatorName) bits.push(esc(t.creatorName));
+  if (t.tags.length) bits.push(esc(t.tags.join(" · ")));
+  if (me) bits.push(fmtDist(dist(me, t)) + " unna");
+  if (t.seqName) bits.push(`Sekvens «${esc(t.seqName)}» #${t.seqNo}`);
+  bits.push(`Lyttescore ${Math.round(quality(t) * 100)} %`);
+  const vis = t.visibility === "private" ? '<span class="badge grey">Bare meg</span>' : t.visibility === "friends" ? '<span class="badge grey">Venner</span>' : "";
+  $("p-meta").innerHTML = `<span class="badge ${lbl}">${LABELS[lbl]}</span>${t.kind === "text" ? '<span class="badge grey">Syntetisk stemme</span>' : ""}${t.hidden ? '<span class="badge grey">Skjult spor</span>' : ""}${vis}<br>${bits.join("  ·  ")}`;
+  const img = $("p-img");
+  if (t.imageUrl) { img.src = t.imageUrl; img.style.display = "block"; } else { img.removeAttribute("src"); img.style.display = "none"; }
+  $("player").classList.add("show"); document.body.classList.add("has-player");
+  if (t.kind === "text") {
+    audio.style.display = "none"; audio.removeAttribute("src");
+    $("p-tts").style.display = "flex";
+    speak(t);
+  } else {
+    $("p-tts").style.display = "none"; audio.style.display = "block";
+    audio.src = t.audioUrl;
+    audio.play().catch(() => {});
+  }
+  renderActions(t); renderReplies(t);
+  $("car-now").textContent = t.title || "Uten navn";
+  if (!walking) map.panTo([t.lat, t.lng]);
+}
+$("tts-btn").onclick = () => {
+  if (!current) return;
+  if (speaking) { speechSynthesis.cancel(); speaking = false; $("tts-btn").textContent = "▶"; }
+  else speak(current);
 };
+audio.addEventListener("play", () => current && onStarted(current));
+audio.addEventListener("ended", () => current && onCompleted(current));
+$("close").onclick = () => { stopAll(); $("player").classList.remove("show"); document.body.classList.remove("has-player"); current = null; };
 
-// ---- Gå-modus ----
-function checkNearby() {
-  if (!walking || !me || (current && !audio.paused)) return;
-  const next = visiblePins().map(p => ({ p, d: dist(me, p) })).filter(x => x.d <= TRIGGER_RADIUS_M).sort((a, b) => a.d - b.d)[0];
-  if (next) play(next.p);
+function renderActions(t) {
+  const box = $("p-actions"); box.innerHTML = "";
+  const add = (label, fn, cls = "") => { const b = document.createElement("button"); b.textContent = label; b.className = cls; b.onclick = fn; box.appendChild(b); };
+  add("💬 Svar", () => openRecorder({ replyTo: t }));
+  add("🔗 Del", () => {
+    const url = `${location.origin}${location.pathname}?pin=${encodeURIComponent(t.id)}`;
+    (navigator.share ? navigator.share({ title: t.title || "SoundPin", url }) : navigator.clipboard.writeText(url).then(() => toast("Lenken er kopiert"))).catch(() => {});
+  });
+  if (!t.legacy) add("⚑ Rapporter", () => report(t));
+  if (fb && user && !t.legacy && isVerifier()) {
+    add(t.label === "verified" ? "Fjern verifisering" : "✓ Verifiser", () => setLabel(t, t.label === "verified" ? "local" : "verified"));
+  }
+  if (fb && user && !t.legacy && (t.creator === user.uid || isAdmin())) add("🗑 Slett", () => removeTrack(t));
+}
+function renderReplies(t) {
+  const reps = tracks.filter(x => x.replyTo === t.id).sort((a, b) => a.createdAt - b.createdAt);
+  const box = $("p-replies");
+  if (!reps.length) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  box.innerHTML = `<h3>Svar (${reps.length})</h3>`;
+  reps.forEach(r => {
+    const row = document.createElement("div"); row.className = "reply";
+    row.innerHTML = `<button>▶</button><span><b>${esc(r.creatorName || "Ukjent")}</b> ${esc(r.title || "")}</span>`;
+    row.querySelector("button").onclick = () => play(r);
+    box.appendChild(row);
+  });
 }
 
-$("walk").onclick = () => {
-  walking = !walking;
+// ================= Gå-modus og bilmodus =================
+function shouldTrigger(t, d) {
+  if (user && t.creator === user.uid) return false;                                // egne spor spilles ikke automatisk
+  const lead = Math.max(MIN_TRIGGER_M, speed * LEAD_SECONDS);
+  if (d > lead) return false;
+  if (carMode && (t.duration || 0) > CAR_MAX_SECONDS) return false;
+  if (course != null && speed > 1.5) {
+    if (t.seqDir != null && angleDiff(course, t.seqDir) > SEQ_DEG) return false;   // feil retning for sekvensen
+    if (d > 35 && angleDiff(course, bearing(me, t)) > AHEAD_DEG) return false;      // ligger bak deg
+  }
+  return true;
+}
+function checkNearby() {
+  if (!walking || !me) return;
+  // Skjulte spor dukker opp når du er nær nok
+  let changed = false;
+  baseList().forEach(t => {
+    if (t.hidden && !revealed.has(t.id) && dist(me, t) <= SECRET_REVEAL_M) { revealed.add(t.id); changed = true; toast("🗝 Du fant et skjult spor!"); }
+  });
+  if (changed) { store.set("sp-revealed", [...revealed]); render(); }
+  const busy = current && ((!audio.paused && !audio.ended) || speaking);
+  const cand = visibleTracks().map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d)).sort((a, b) => a.d - b.d);
+  if (carMode) $("car-next").textContent = cand[0] && !busy ? "" : nextAheadText();
+  if (busy || !cand.length) return;
+  play(cand[0].t);
+}
+function nextAheadText() {
+  if (!me) return "";
+  const ahead = visibleTracks().map(t => ({ t, d: dist(me, t) }))
+    .filter(x => course == null || angleDiff(course, bearing(me, x.t)) <= AHEAD_DEG).sort((a, b) => a.d - b.d)[0];
+  return ahead ? `Neste: ${ahead.t.title || "spor"} om ${fmtDist(ahead.d)}` : "";
+}
+function setCar(on) {
+  carMode = on; document.body.classList.toggle("car", on); $("carbtn").classList.toggle("on", on);
+  if (on && !walking) toggleWalk(true);
+}
+function onPosition(pos) {
+  const now = Date.now();
+  const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  if (lastFix) {
+    const d = dist(lastFix.p, p), dt = (now - lastFix.t) / 1000;
+    if (d >= 8) { course = bearing(lastFix.p, p); lastFix = { p, t: now }; }
+    speed = pos.coords.speed != null && pos.coords.speed >= 0 ? pos.coords.speed : (dt > 0 ? d / dt : speed);
+  } else lastFix = { p, t: now };
+  if (pos.coords.heading != null && !isNaN(pos.coords.heading) && speed > 1.5) course = pos.coords.heading;
+  // Bilmodus slås på automatisk ved høy fart og av igjen etter 30 s med lav fart
+  if (!carManual) {
+    if (speed > CAR_SPEED) { if (++fastCount >= 3 && !carMode) setCar(true); slowSince = null; }
+    else { fastCount = 0; if (carMode && speed < 3) { slowSince ??= now; if (now - slowSince > 30000) setCar(false); } }
+  }
+  $("car-speed").textContent = `Bilmodus · ${Math.round(speed * 3.6)} km/t`;
+  const first = !me; me = p;
+  const html = `<div class="me ${course != null ? "dir" : ""}" style="--rot:${course || 0}deg"></div>`;
+  if (!meMarker) meMarker = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html, iconSize: [18, 18] }), interactive: false, zIndexOffset: 1000 }).addTo(map);
+  else { meMarker.setLatLng([p.lat, p.lng]); meMarker.setIcon(L.divIcon({ className: "", html, iconSize: [18, 18] })); }
+  if (first) map.setView([p.lat, p.lng], 16);
+  else if (carMode) map.panTo([p.lat, p.lng]);
+  render(); checkNearby();
+}
+function startWatch() {
+  if (watchId != null || !navigator.geolocation) return;
+  watchId = navigator.geolocation.watchPosition(onPosition, err => { $("status").textContent = "Fikk ikke posisjon: " + err.message; },
+    { enableHighAccuracy: true, maximumAge: 3000 });
+}
+function toggleWalk(force) {
+  walking = force ?? !walking;
   $("walk").classList.toggle("on", walking);
   if (walking) {
     // Låser opp lyd på iOS (krever brukerhandling)
     audio.muted = true; audio.play().catch(() => {}).finally(() => { audio.pause(); audio.muted = false; });
     if (!navigator.geolocation) { alert("Nettleseren støtter ikke posisjon."); return; }
-    watchId = navigator.geolocation.watchPosition(pos => {
-      const first = !me;
-      me = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      if (!meMarker) meMarker = L.marker([me.lat, me.lng], { icon: L.divIcon({ className: "", html: '<div class="me"></div>', iconSize: [18, 18] }), interactive: false }).addTo(map);
-      else meMarker.setLatLng([me.lat, me.lng]);
-      if (first) map.setView([me.lat, me.lng], 16);
-      render();
-      checkNearby();
-    }, err => { $("status").textContent = "Fikk ikke posisjon: " + err.message; }, { enableHighAccuracy: true, maximumAge: 5000 });
-  } else {
-    if (watchId != null) navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-  }
+    startWatch();
+  } else if (carMode) setCar(false);
   render();
-};
+}
+$("walk").onclick = () => toggleWalk();
+$("carbtn").onclick = () => { carManual = true; setCar(!carMode); };
+$("car-off").onclick = () => { carManual = true; setCar(false); };
+$("heat").onclick = () => { heatOn = !heatOn; $("heat").classList.toggle("on", heatOn); render(); };
 
-// ---- Last data ----
-fetch("data/pins.json").then(r => r.json()).then(data => {
-  pins = data;
-  renderTags();
-  render();
-  // Start over Rogaland der flest spor ligger
-  map.setView([59.0, 5.9], 9);
-  // Åpne et bestemt spor via ?pin=<id>
+// ================= Sekvenser =================
+function computeSequences() {
+  const groups = {};
+  tracks.forEach(t => { t.seqDir = null; if (t.seqId) (groups[t.seqId] ||= []).push(t); });
+  Object.values(groups).forEach(g => {
+    g.sort((a, b) => a.seqNo - b.seqNo);
+    if (g.length < 2) return;
+    g.forEach((t, i) => { t.seqDir = i < g.length - 1 ? bearing(t, g[i + 1]) : bearing(g[i - 1], t); });
+  });
+}
+
+// ================= Data =================
+function normLegacy(p) {
+  return {
+    id: p.id, title: p.name, desc: p.description, lat: p.lat, lng: p.lng, tags: p.tags || [],
+    audioUrl: p.audioUrl, imageUrl: p.imageUrl, kind: "audio", label: "local", legacy: true,
+    creatorName: "SoundPin-arkivet", visibility: "public", createdAt: p.createdAt ? Date.parse(p.createdAt) : 0
+  };
+}
+function normTrack(id, d) {
+  return { id, ...d, tags: d.tags || [], label: d.label || "local", createdAt: d.createdAt || 0, seqNo: d.seqNo || 0 };
+}
+function setTracks(list) {
+  tracks = list; byId = new Map(list.map(t => [t.id, t]));
+  computeSequences(); renderTags(); render();
+}
+async function loadAll() {
+  let legacy = [];
+  try { legacy = (await (await fetch("data/pins.json")).json()).map(normLegacy); }
+  catch (e) { $("status").textContent = "Kunne ikke laste arkivet: " + e.message; }
+  let fresh = [];
+  if (fb) {
+    const { collection, query, where, getDocs } = fb;
+    const col = collection(fb.db, "sp_tracks");
+    const qs = [query(col, where("visibility", "==", "public"))];
+    if (user) { qs.push(query(col, where("creator", "==", user.uid))); qs.push(query(col, where("allowed", "array-contains", user.uid))); }
+    const seen = new Map();
+    for (const q of qs) {
+      try { (await getDocs(q)).forEach(s => seen.set(s.id, normTrack(s.id, s.data()))); }
+      catch (e) { console.warn("Spørring feilet", e); }
+    }
+    fresh = [...seen.values()];
+    try { (await getDocs(collection(fb.db, "sp_stats"))).forEach(s => stats[s.id] = s.data()); }
+    catch (e) { console.warn("Lyttescore ikke lastet", e); }
+  }
+  setTracks([...legacy, ...fresh]);
+}
+
+// ================= Firebase =================
+const V = "10.12.2";
+async function initFirebase() {
+  if (!firebaseConfig.apiKey) { console.info("Firebase er ikke konfigurert – kjører bare med arkivet."); return false; }
+  const [app, auth, fs, st] = await Promise.all([
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`),
+    import(`https://www.gstatic.com/firebasejs/${V}/firebase-storage.js`)
+  ]);
+  const a = app.initializeApp(firebaseConfig);
+  fb = { ...auth, ...fs, ...st, auth: auth.getAuth(a), db: fs.getFirestore(a), storage: st.getStorage(a) };
+  fb.storageRef = st.ref;
+  return true;
+}
+const isReal = () => user && !user.isAnonymous;
+const isAdmin = () => isReal() && user.email === ADMIN_EMAIL;
+const role = () => isAdmin() ? "admin" : (profile?.role || "user");
+const canPublic = () => ["authorized", "verifier", "admin"].includes(role());
+const isVerifier = () => ["verifier", "admin"].includes(role());
+const ROLE_NAMES = { user: "Ny bruker", authorized: "Autorisert", verifier: "Verifikator", admin: "Administrator" };
+
+async function signIn() {
+  const provider = new fb.GoogleAuthProvider();
+  const before = user?.uid;
+  try {
+    if (user && user.isAnonymous) await fb.linkWithPopup(user, provider);
+    else await fb.signInWithPopup(fb.auth, provider);
+  } catch (e) {
+    if (e.code === "auth/credential-already-in-use") await fb.signInWithPopup(fb.auth, provider);
+    else if (e.code !== "auth/popup-closed-by-user") { alert("Innlogging feilet: " + (e.code || e.message)); return; }
+  }
+  // Ved kobling beholdes bruker-ID-en, og onAuthStateChanged slår ikke til
+  if (fb.auth.currentUser && fb.auth.currentUser.uid === before) { user = fb.auth.currentUser; await afterSignIn(); }
+}
+function randomCode(n = 10) { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map(x => "abcdefghjkmnpqrstuvwxyz23456789"[x % 31]).join(""); }
+async function afterSignIn() {
+  profile = null; members = [];
+  if (!isReal()) { updateMeButton(); return; }
+  const ref = fb.doc(fb.db, "sp_users", user.uid);
+  try {
+    const snap = await fb.getDoc(ref);
+    if (snap.exists()) profile = snap.data();
+    else {
+      profile = { name: user.displayName || "Ny bruker", role: "user", inviteCode: randomCode(), iconUrl: null, following: [], createdAt: Date.now() };
+      await fb.setDoc(ref, profile);
+    }
+    members = (await fb.getDocs(fb.collection(fb.db, "sp_users", user.uid, "members"))).docs.map(d => ({ uid: d.id, ...d.data() }));
+  } catch (e) { console.warn("Profil ikke lastet", e); }
+  updateMeButton();
+  await handleInvite();
+  await loadAll();
+  syncFriendAccess();
+}
+function updateMeButton() {
+  const b = $("me-btn");
+  if (isReal()) b.innerHTML = profile?.iconUrl ? `<img src="${esc(profile.iconUrl)}" alt="">` : "🙂";
+  else b.textContent = "👤";
+}
+// Spor delt med «Venner» oppdateres når nye venner kommer til
+async function syncFriendAccess() {
+  if (!isReal()) return;
+  const want = members.map(m => m.uid).sort().join(",");
+  for (const t of tracks.filter(t => t.creator === user.uid && t.visibility === "friends")) {
+    if ((t.allowed || []).slice().sort().join(",") === want) continue;
+    try { await fb.updateDoc(fb.doc(fb.db, "sp_tracks", t.id), { allowed: members.map(m => m.uid) }); t.allowed = members.map(m => m.uid); }
+    catch (e) { console.warn(e); }
+  }
+}
+async function handleInvite() {
+  const qs = new URLSearchParams(location.search);
+  const host = qs.get("venn") || sessionStorage.getItem("sp-venn"), k = qs.get("k") || sessionStorage.getItem("sp-k");
+  if (!host || !k) return;
+  if (!isReal()) { sessionStorage.setItem("sp-venn", host); sessionStorage.setItem("sp-k", k); toast("Logg inn for å bli venn og høre de delte sporene."); return; }
+  sessionStorage.removeItem("sp-venn"); sessionStorage.removeItem("sp-k");
+  if (host === user.uid) return;
+  try {
+    await fb.setDoc(fb.doc(fb.db, "sp_users", host, "members", user.uid), { k, name: profile?.name || user.displayName || "", at: Date.now() });
+    await fb.updateDoc(fb.doc(fb.db, "sp_users", user.uid), { following: fb.arrayUnion(host) });
+    toast("Du er nå venn. Sporene deres dukker opp når de åpner appen neste gang.", 5000);
+    history.replaceState(null, "", location.pathname);
+  } catch (e) { toast("Invitasjonen er ugyldig eller utløpt."); console.warn(e); }
+}
+
+// ================= Profil =================
+function openProfile() {
+  const box = $("prof");
+  if (!fb) { box.innerHTML = `<h2>Profil</h2><p>Innlogging er ikke satt opp ennå. Firebase-konfigurasjonen mangler i <code>firebase-config.js</code>.</p><div class="footer"><button onclick="document.getElementById('prof-bg').classList.remove('show')">Lukk</button></div>`; $("prof-bg").classList.add("show"); return; }
+  if (!isReal()) {
+    box.innerHTML = `<h2>Logg inn</h2><p>Du kan lytte uten å logge inn. For å lage spor, svare, bli venn eller få ditt eget ikon må du logge inn med Google.</p>
+      <div class="footer"><button id="pf-close">Lukk</button><button class="primary" id="pf-login">Logg inn med Google</button></div>`;
+    $("pf-login").onclick = async () => { $("prof-bg").classList.remove("show"); await signIn(); };
+  } else {
+    const link = `${location.origin}${location.pathname}?venn=${user.uid}&k=${profile?.inviteCode || ""}`;
+    box.innerHTML = `<h2>Profil</h2>
+      <div class="row"><img class="icon-preview" id="pf-icon" src="${esc(profile?.iconUrl || "")}" alt=""><div style="flex:1">
+        <div><b>${esc(profile?.name || "")}</b></div><div class="hint">${esc(user.email || "")} · ${ROLE_NAMES[role()]}</div></div></div>
+      <label for="pf-name">Navn som vises på sporene dine</label><input type="text" id="pf-name" value="${esc(profile?.name || "")}" maxlength="60">
+      <label>Eget ikon i kartet</label><input type="file" id="pf-file" accept="image/*">
+      <div class="hint">${role() === "user" ? "Som ny bruker kan du dele med venner. Når du får autorisert status, kan du dele med alle." : "Du kan dele spor med alle."}</div>
+      <label>Inviter venner</label>
+      <div class="row"><input type="text" readonly value="${esc(link)}" id="pf-link"><button id="pf-copy">Kopier</button></div>
+      <div class="hint">De som åpner lenken og logger inn, kan høre sporene du deler med «Venner».</div>
+      <label>Venner (${members.length})</label><div id="pf-members"></div>
+      <div id="pf-admin"></div>
+      <div class="err" id="pf-err"></div>
+      <div class="footer"><button id="pf-out">Logg ut</button><button id="pf-close">Lukk</button><button class="primary" id="pf-save">Lagre</button></div>`;
+    const mbox = $("pf-members");
+    if (!members.length) mbox.innerHTML = '<div class="hint">Ingen ennå.</div>';
+    members.forEach(m => {
+      const r = document.createElement("div"); r.className = "list-row";
+      r.innerHTML = `<span>${esc(m.name || m.uid)}</span><button>Fjern</button>`;
+      r.querySelector("button").onclick = async () => {
+        await fb.deleteDoc(fb.doc(fb.db, "sp_users", user.uid, "members", m.uid));
+        members = members.filter(x => x.uid !== m.uid); await syncFriendAccess(); openProfile();
+      };
+      mbox.appendChild(r);
+    });
+    $("pf-copy").onclick = () => navigator.clipboard.writeText(link).then(() => toast("Lenken er kopiert"));
+    $("pf-out").onclick = async () => { await fb.signOut(fb.auth); $("prof-bg").classList.remove("show"); location.reload(); };
+    $("pf-save").onclick = saveProfile;
+    $("pf-file").onchange = () => { const f = $("pf-file").files[0]; if (f) $("pf-icon").src = URL.createObjectURL(f); };
+    if (isAdmin()) renderAdmin();
+  }
+  $("pf-close").onclick = () => $("prof-bg").classList.remove("show");
+  $("prof-bg").classList.add("show");
+}
+async function saveProfile() {
+  const btn = $("pf-save"); btn.disabled = true; $("pf-err").textContent = "";
+  try {
+    const upd = { name: $("pf-name").value.trim() || profile.name };
+    const f = $("pf-file").files[0];
+    if (f) {
+      const blob = await resizeImage(f, 128, true);
+      const r = fb.storageRef(fb.storage, `sp/${user.uid}/icon-${Date.now()}.jpg`);
+      await fb.uploadBytes(r, blob, { contentType: "image/jpeg" });
+      upd.iconUrl = await fb.getDownloadURL(r);
+    }
+    await fb.updateDoc(fb.doc(fb.db, "sp_users", user.uid), upd);
+    Object.assign(profile, upd); updateMeButton();
+    $("prof-bg").classList.remove("show"); toast("Profilen er lagret. Nye spor får det nye ikonet.");
+  } catch (e) { $("pf-err").textContent = "Kunne ikke lagre: " + (e.code || e.message); }
+  btn.disabled = false;
+}
+async function renderAdmin() {
+  const box = $("pf-admin");
+  box.innerHTML = `<label>Administrasjon – brukere og roller</label><div id="ad-users" class="hint">Laster …</div><label>Rapporterte spor</label><div id="ad-reports" class="hint">Laster …</div>`;
+  try {
+    const us = (await fb.getDocs(fb.collection(fb.db, "sp_users"))).docs;
+    const ub = $("ad-users"); ub.innerHTML = ""; ub.className = "";
+    us.forEach(d => {
+      const u = d.data(); const r = document.createElement("div"); r.className = "list-row";
+      r.innerHTML = `${u.iconUrl ? `<img src="${esc(u.iconUrl)}">` : ""}<span>${esc(u.name || d.id)}</span><select>${Object.entries(ROLE_NAMES).map(([k, v]) => `<option value="${k}" ${u.role === k ? "selected" : ""}>${v}</option>`).join("")}</select>`;
+      r.querySelector("select").onchange = async e => {
+        try { await fb.updateDoc(d.ref, { role: e.target.value }); toast("Rollen er endret"); } catch (er) { toast("Feil: " + (er.code || er.message)); }
+      };
+      ub.appendChild(r);
+    });
+  } catch (e) { $("ad-users").textContent = "Kunne ikke laste brukere: " + (e.code || e.message); }
+  try {
+    const rs = (await fb.getDocs(fb.collection(fb.db, "sp_reports"))).docs;
+    const rb = $("ad-reports"); rb.innerHTML = rs.length ? "" : "Ingen rapporter."; rb.className = rs.length ? "" : "hint";
+    rs.forEach(d => {
+      const x = d.data(), t = byId.get(x.track);
+      const r = document.createElement("div"); r.className = "list-row";
+      r.innerHTML = `<span>${esc(t?.title || x.track)} – ${esc(x.reason || "")}</span><button>Vis</button><button>Ferdig</button>`;
+      const [show, done] = r.querySelectorAll("button");
+      show.onclick = () => { if (t) { $("prof-bg").classList.remove("show"); map.setView([t.lat, t.lng], 16); play(t); } };
+      done.onclick = async () => { await fb.deleteDoc(d.ref); r.remove(); };
+      rb.appendChild(r);
+    });
+  } catch (e) { $("ad-reports").textContent = "Kunne ikke laste rapporter: " + (e.code || e.message); }
+}
+$("me-btn").onclick = openProfile;
+
+// ================= Moderering =================
+async function report(t) {
+  if (!fb || !user) { toast("Rapportering krever at innlogging er satt opp."); return; }
+  const reason = prompt("Hva er galt med sporet?");
+  if (reason == null) return;
+  try { await fb.addDoc(fb.collection(fb.db, "sp_reports"), { track: t.id, reason: reason.slice(0, 500), by: user.uid, at: Date.now() }); toast("Takk, rapporten er sendt."); }
+  catch (e) { toast("Kunne ikke sende: " + (e.code || e.message)); }
+}
+async function setLabel(t, label) {
+  try { await fb.updateDoc(fb.doc(fb.db, "sp_tracks", t.id), { label }); t.label = label; play(t); render(); }
+  catch (e) { toast("Feil: " + (e.code || e.message)); }
+}
+async function removeTrack(t) {
+  if (!confirm("Slette sporet?")) return;
+  try { await fb.deleteDoc(fb.doc(fb.db, "sp_tracks", t.id)); $("close").click(); setTracks(tracks.filter(x => x.id !== t.id)); toast("Sporet er slettet."); }
+  catch (e) { toast("Feil: " + (e.code || e.message)); }
+}
+
+// ================= Nytt spor =================
+const R = { kind: "audio", pos: "me", vis: "friends", blob: null, mime: "", duration: 0, replyTo: null, recorder: null, timer: null };
+const maxSeconds = () => canPublic() ? MAX_SECONDS_AUTH : MAX_SECONDS_USER;
+function seg(id, key, val) { $(id).querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset[key] === val)); }
+function fmtTime(s) { s = Math.floor(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
+
+function openRecorder({ replyTo = null } = {}) {
+  if (!fb) { openProfile(); return; }
+  if (!isReal()) { openProfile(); toast("Logg inn for å lage spor."); return; }
+  Object.assign(R, { kind: "audio", blob: null, mime: "", duration: 0, replyTo, pos: me ? "me" : "map", vis: canPublic() ? "public" : "friends" });
+  $("rec-title").textContent = replyTo ? `Svar på «${replyTo.title || "spor"}»` : "Nytt lydspor";
+  ["rec-name", "rec-desc", "rec-tags", "rec-textarea", "rec-seq-name"].forEach(id => $(id).value = "");
+  if (replyTo) $("rec-name").value = "Svar: " + (replyTo.title || "");
+  $("rec-img").value = ""; $("rec-hidden").checked = false; $("rec-rights").checked = false;
+  $("rec-preview").style.display = "none"; $("rec-time").textContent = "0:00"; $("rec-err").textContent = "";
+  $("rec-limit").textContent = `Maks ${fmtTime(maxSeconds())}. Støy dempes automatisk av nettleseren.`;
+  $("rec-pos").parentElement.querySelectorAll("#rec-pos, #rec-pos-hint").forEach(el => el.style.display = replyTo ? "none" : "");
+  $("rec-hidden").parentElement.style.display = replyTo ? "none" : "";
+  $("rec-seq").style.display = replyTo ? "none" : "";
+  // Sekvenser jeg har laget
+  const mine = {}; tracks.filter(t => t.creator === user.uid && t.seqId).forEach(t => { mine[t.seqId] = { name: t.seqName, n: Math.max(mine[t.seqId]?.n || 0, t.seqNo) }; });
+  $("rec-seq").innerHTML = `<option value="">Ingen sekvens</option>${Object.entries(mine).map(([id, s]) => `<option value="${id}">${esc(s.name)} (neste blir #${s.n + 1})</option>`).join("")}<option value="new">+ Ny sekvens …</option>`;
+  $("rec-seq-name").style.display = "none";
+  setKind("audio"); setPos(R.pos); setVis(R.vis);
+  $("rec-bg").classList.add("show");
+}
+function setKind(k) {
+  R.kind = k; seg("rec-kind", "k", k);
+  $("rec-audio").style.display = k === "audio" ? "" : "none";
+  $("rec-text").style.display = k === "text" ? "" : "none";
+}
+function setPos(p) {
+  if (p === "me" && !me) { toast("Slå på gå-modus for å bruke posisjonen din, eller velg midt i kartet."); p = "map"; }
+  R.pos = p; seg("rec-pos", "p", p);
+  const c = p === "me" ? me : map.getCenter();
+  $("rec-pos-hint").textContent = p === "map" ? `Midt i kartet (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}). Lukk og flytt kartet for å velge et annet sted.` : `Der du står nå (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}).`;
+}
+function setVis(v) {
+  if (v === "public" && !canPublic()) { toast("Du kan dele med alle når du har fått autorisert status."); v = "friends"; }
+  R.vis = v; seg("rec-vis", "v", v);
+  $("rec-vis").querySelector('[data-v="public"]').disabled = !canPublic();
+  $("rec-vis-hint").textContent = v === "private" ? "Bare du kan høre sporet." : v === "friends" ? `Dine ${members.length} venner kan høre sporet.` : "Alle kan høre sporet.";
+}
+$("rec-kind").onclick = e => e.target.dataset.k && setKind(e.target.dataset.k);
+$("rec-pos").onclick = e => e.target.dataset.p && setPos(e.target.dataset.p);
+$("rec-vis").onclick = e => e.target.dataset.v && setVis(e.target.dataset.v);
+$("rec-seq").onchange = () => $("rec-seq-name").style.display = $("rec-seq").value === "new" ? "" : "none";
+$("rec-textarea").oninput = () => {
+  const n = ($("rec-textarea").value.match(/\S+/g) || []).length;
+  const max = Math.round(WORDS_PER_90S * maxSeconds() / 90);
+  $("rec-words").textContent = `${n} av maks ${max} ord (ca. ${fmtTime(n / WORDS_PER_90S * 90)})`;
+  $("rec-words").style.color = n > max ? "#c00" : "";
+};
+$("rec-speak").onclick = e => { e.preventDefault(); const t = $("rec-textarea").value.trim(); if (t) speak({ id: "_preview", text: t }); };
+$("rec-cancel").onclick = () => { stopRecording(); speechSynthesis?.cancel(); $("rec-bg").classList.remove("show"); };
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true } });
+    const types = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"];
+    const mime = types.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+    const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const chunks = []; const t0 = Date.now();
+    rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+    rec.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearInterval(R.timer);
+      R.mime = (rec.mimeType || mime || "audio/webm").split(";")[0];
+      R.blob = new Blob(chunks, { type: R.mime });
+      R.duration = Math.min(maxSeconds(), (Date.now() - t0) / 1000);
+      $("rec-preview").src = URL.createObjectURL(R.blob); $("rec-preview").style.display = "block";
+      $("rec-dot").classList.remove("live"); $("rec-start").textContent = "Ta opp på nytt"; R.recorder = null;
+    };
+    rec.start(250); R.recorder = rec;
+    $("rec-dot").classList.add("live"); $("rec-start").textContent = "Stopp"; $("rec-preview").style.display = "none";
+    R.timer = setInterval(() => {
+      const s = (Date.now() - t0) / 1000;
+      $("rec-time").textContent = `${fmtTime(s)} / ${fmtTime(maxSeconds())}`;
+      if (s >= maxSeconds()) stopRecording();
+    }, 200);
+  } catch (e) { $("rec-err").textContent = "Fikk ikke tilgang til mikrofonen: " + e.message; }
+}
+function stopRecording() { if (R.recorder && R.recorder.state !== "inactive") R.recorder.stop(); }
+$("rec-start").onclick = () => R.recorder ? stopRecording() : startRecording();
+
+async function resizeImage(file, max, square = false) {
+  const img = await createImageBitmap(file, { imageOrientation: "from-image" });
+  let sw = img.width, sh = img.height, sx = 0, sy = 0;
+  if (square) { const s = Math.min(sw, sh); sx = (sw - s) / 2; sy = (sh - s) / 2; sw = sh = s; }
+  const scale = Math.min(1, max / Math.max(sw, sh));
+  const c = document.createElement("canvas"); c.width = Math.round(sw * scale); c.height = Math.round(sh * scale);
+  c.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return new Promise(res => c.toBlob(res, "image/jpeg", 0.85));
+}
+
+$("rec-save").onclick = async () => {
+  const err = $("rec-err"); err.textContent = "";
+  const title = $("rec-name").value.trim();
+  if (!title) { err.textContent = "Gi sporet en tittel."; return; }
+  let text = "";
+  if (R.kind === "audio") {
+    if (R.recorder) stopRecording();
+    if (!R.blob) { err.textContent = "Ta opp lyd først."; return; }
+  } else {
+    text = $("rec-textarea").value.trim();
+    const n = (text.match(/\S+/g) || []).length, max = Math.round(WORDS_PER_90S * maxSeconds() / 90);
+    if (!n) { err.textContent = "Skriv en tekst først."; return; }
+    if (n > max) { err.textContent = `Teksten er for lang (${n} ord, maks ${max}). Del den gjerne opp i en sekvens.`; return; }
+    if (!$("rec-rights").checked) { err.textContent = "Bekreft at du har rett til å bruke teksten."; return; }
+  }
+  const pos = R.replyTo ? { lat: R.replyTo.lat, lng: R.replyTo.lng } : (R.pos === "me" && me ? me : map.getCenter());
+  let seqId = null, seqName = null, seqNo = 0;
+  const sv = $("rec-seq").value;
+  if (!R.replyTo && sv) {
+    if (sv === "new") {
+      seqName = $("rec-seq-name").value.trim();
+      if (!seqName) { err.textContent = "Gi sekvensen et navn."; return; }
+      seqId = "seq-" + randomCode(12); seqNo = 1;
+    } else {
+      const same = tracks.filter(t => t.seqId === sv);
+      seqId = sv; seqName = same[0]?.seqName || "Sekvens"; seqNo = Math.max(0, ...same.map(t => t.seqNo)) + 1;
+    }
+  }
+  const btn = $("rec-save"); btn.disabled = true; btn.textContent = "Laster opp …";
+  try {
+    const id = fb.doc(fb.collection(fb.db, "sp_tracks")).id;
+    let audioUrl = null, imageUrl = null;
+    if (R.kind === "audio") {
+      const ext = R.mime.includes("mp4") ? "m4a" : R.mime.includes("ogg") ? "ogg" : "webm";
+      const r = fb.storageRef(fb.storage, `sp/${user.uid}/audio/${id}.${ext}`);
+      await fb.uploadBytes(r, R.blob, { contentType: R.mime });
+      audioUrl = await fb.getDownloadURL(r);
+    }
+    const f = $("rec-img").files[0];
+    if (f) {
+      const r = fb.storageRef(fb.storage, `sp/${user.uid}/img/${id}.jpg`);
+      await fb.uploadBytes(r, await resizeImage(f, 1200), { contentType: "image/jpeg" });
+      imageUrl = await fb.getDownloadURL(r);
+    }
+    const data = {
+      title, desc: $("rec-desc").value.trim(), tags: $("rec-tags").value.split(",").map(s => s.trim().toLowerCase()).filter(Boolean),
+      lat: pos.lat, lng: pos.lng, kind: R.kind, audioUrl, imageUrl, text: text || null,
+      duration: R.kind === "audio" ? Math.round(R.duration) : Math.round((text.match(/\S+/g) || []).length / WORDS_PER_90S * 90),
+      creator: user.uid, creatorName: profile?.name || user.displayName || "", creatorIcon: profile?.iconUrl || null,
+      visibility: R.vis, allowed: R.vis === "friends" ? members.map(m => m.uid) : [],
+      hidden: !R.replyTo && $("rec-hidden").checked, seqId, seqName, seqNo,
+      replyTo: R.replyTo ? R.replyTo.id : null, label: "local", createdAt: Date.now()
+    };
+    await fb.setDoc(fb.doc(fb.db, "sp_tracks", id), data);
+    if (R.replyTo) await bump(R.replyTo.id, "r", { boost: Date.now() + REPLY_BOOST_DAYS * DAY });
+    setTracks([...tracks, normTrack(id, data)]);
+    $("rec-bg").classList.remove("show");
+    toast(R.replyTo ? "Svaret er lagret." : "Sporet er lagret.");
+    if (R.replyTo) play(R.replyTo);
+  } catch (e) { err.textContent = "Kunne ikke lagre: " + (e.code || e.message); }
+  btn.disabled = false; btn.textContent = "Lagre";
+};
+$("fab").onclick = () => openRecorder();
+
+// ================= Oppstart =================
+(async () => {
+  await loadAll();
   const id = new URLSearchParams(location.search).get("pin");
-  const p = id && pins.find(x => x.id === id);
-  if (p) { map.setView([p.lat, p.lng], 16); play(p); }
-}).catch(e => { $("status").textContent = "Kunne ikke laste spor: " + e.message; });
+  const openPin = () => { const t = id && byId.get(id); if (t) { map.setView([t.lat, t.lng], 16); play(t); return true; } return false; };
+  openPin();
+  try {
+    if (await initFirebase()) {
+      fb.onAuthStateChanged(fb.auth, async u => {
+        if (!u) { try { await fb.signInAnonymously(fb.auth); } catch (e) { console.warn("Anonym innlogging feilet", e); await loadAll(); } return; }
+        const changed = !user || user.uid !== u.uid;
+        user = u;
+        if (changed) { await afterSignIn(); if (!current) openPin(); if (!isReal()) await loadAll(); }
+      });
+    }
+  } catch (e) { console.warn("Firebase kunne ikke startes", e); }
+})();
 </script>
 </body>
 </html>
