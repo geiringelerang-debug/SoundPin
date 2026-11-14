@@ -876,6 +876,7 @@ const AUTH_ERRORS = {
 };
 const authMsg = e => AUTH_ERRORS[e.code] || ("Innlogging feilet: " + (e.code || e.message));
 // Kobler den anonyme brukeren til kontoen når det går, ellers vanlig innlogging
+let pendingGoogle = null; // Google-legitimasjon som venter på å kobles til en eksisterende e-postkonto
 async function signIn() {
   const provider = new fb.GoogleAuthProvider();
   const before = user?.uid;
@@ -883,15 +884,25 @@ async function signIn() {
     if (user && user.isAnonymous) await fb.linkWithPopup(user, provider);
     else await fb.signInWithPopup(fb.auth, provider);
   } catch (e) {
-    if (e.code === "auth/credential-already-in-use") {
-      // Google-kontoen er allerede i bruk: logg inn med den uten å åpne et nytt vindu
+    if (["auth/credential-already-in-use", "auth/email-already-in-use", "auth/account-exists-with-different-credential"].includes(e.code)) {
+      // Google-kontoen eller e-posten finnes allerede: logg inn på den kontoen uten å åpne et nytt vindu
       const cred = fb.GoogleAuthProvider.credentialFromError(e);
-      try { if (cred) await fb.signInWithCredential(fb.auth, cred); else await fb.signInWithPopup(fb.auth, provider); } catch (e2) { return authMsg(e2); }
-    } else if (["auth/popup-blocked", "auth/operation-not-supported-in-this-environment", "auth/cancelled-popup-request"].includes(e.code)) {
-      // Nettleseren blokkerte vinduet: gå via omdirigering i stedet
-      if (user && user.isAnonymous) await fb.linkWithRedirect(user, provider); else await fb.signInWithRedirect(fb.auth, provider);
-      return null;
-    } else if (e.code === "auth/popup-closed-by-user") return null;
+      try { if (cred) await fb.signInWithCredential(fb.auth, cred); else await fb.signInWithPopup(fb.auth, provider); }
+      catch (e2) {
+        if (cred && ["auth/account-exists-with-different-credential", "auth/email-already-in-use"].includes(e2.code)) {
+          // E-posten har en konto med passord: Google kobles på når brukeren logger inn med e-post
+          pendingGoogle = cred;
+          return "Du har allerede en konto med denne e-posten. Logg inn med e-post og passord én gang, så kobles Google til kontoen. Glemt passordet? Trykk «Glemt passord».";
+        }
+        return authMsg(e2);
+      }
+    } else if (e.code === "auth/popup-blocked") {
+      // Omdirigering virker ikke når appen ligger på github.io og innloggingen på firebaseapp.com
+      // (nettleseren blokkerer lagring på tvers av domener), så be om å tillate vinduet i stedet
+      return "Nettleseren blokkerte innloggingsvinduet. Tillat popup-vinduer for denne siden og trykk på knappen igjen – eller logg inn med e-post.";
+    } else if (e.code === "auth/operation-not-supported-in-this-environment") {
+      return "Google-innlogging virker ikke i denne nettleseren (f.eks. bilens nettleser eller nettleseren inne i en annen app). Åpne siden i Chrome eller Safari, eller logg inn med e-post.";
+    } else if (["auth/popup-closed-by-user", "auth/cancelled-popup-request"].includes(e.code)) return null;
     else return authMsg(e);
   }
   // Ved kobling beholdes bruker-ID-en, og onAuthStateChanged slår ikke til
@@ -911,6 +922,11 @@ async function signInEmail(email, pass, create) {
       try { await fb.signInWithEmailAndPassword(fb.auth, email, pass); }
       catch { return "Du har allerede en konto med denne e-posten. Skriv riktig passord under «Logg inn», eller trykk «Glemt passord»."; }
     } else return authMsg(e);
+  }
+  if (pendingGoogle && fb.auth.currentUser && !fb.auth.currentUser.isAnonymous) {
+    try { await fb.linkWithCredential(fb.auth.currentUser, pendingGoogle); toast("Google er koblet til kontoen. Neste gang kan du logge inn med Google.", 5000); }
+    catch (e) { console.warn("Kunne ikke koble Google", e); }
+    pendingGoogle = null;
   }
   if (fb.auth.currentUser && fb.auth.currentUser.uid === before) { user = fb.auth.currentUser; await afterSignIn(); }
   return null;
@@ -1659,6 +1675,12 @@ cross.addEventListener("contextmenu", e => e.preventDefault());
   openPin();
   try {
     if (await initFirebase()) {
+      // Fanger opp en eventuell omdirigering fra tidligere versjoner, og viser feilen i stedet for å stoppe stille
+      fb.getRedirectResult(fb.auth).catch(async e => {
+        const cred = e.code === "auth/credential-already-in-use" && fb.GoogleAuthProvider.credentialFromError(e);
+        if (cred) { try { await fb.signInWithCredential(fb.auth, cred); return; } catch (e2) { e = e2; } }
+        toast(authMsg(e), 8000);
+      });
       fb.onAuthStateChanged(fb.auth, async u => {
         if (!u) { try { await fb.signInAnonymously(fb.auth); } catch (e) { console.warn("Anonym innlogging feilet", e); await loadAll(); } return; }
         const changed = !user || user.uid !== u.uid;
