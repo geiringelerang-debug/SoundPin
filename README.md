@@ -2,6 +2,19 @@
 
 En tjeneste som leser opp historier om nærmiljøet mens du beveger deg ute.
 
+## Versjon 3 (november 2026)
+
+- **Radius per spor (10–500 m).** Settes under «Avansert» når sporet lages; over 200 m krever autorisert status. Brukeren kan skalere alle radiuser (Nær / Normal / Vid) i profilen. Åpne spor starter fortsatt ca. 20 s før du er fremme i fart. Et spor som er spilt, utløses ikke igjen før du har vært et stykke utenfor radiusen (hysterese). Gå-modus viser GPS-nøyaktigheten (±m).
+- **Hvordan finnes sporet?** *Vises i kartet* (som før), *Må være der* (vises med 🔒; låses opp når du er innenfor radiusen én gang, og kan deretter høres hvor som helst) eller *Skjult skattejakt* (vises ikke før du er der). Opplåsinger lagres på kontoen, gir poeng i lyttescoren, og svar på et opplåst spor får merket «📍 var her». Filteret «🔓 Opplåst» viser sporene du har låst opp.
+- **Godkjenning:** vanlige brukere kan velge «Alle». Sporet deles da med venner og havner i godkjenningskøen (profil → Administrasjon). Admin kan også trekke tilbake offentlige spor.
+- **Rydding i arkivet** (profil → Administrasjon → 🧹): ett spor om gangen med Behold (B), Usikker (U), Arkiver (A), ←/→ og mellomrom. Tittel, kategori, eier, radius, «hvordan finnes» og verifisering kan endres. Arkiverte spor skjules, men slettes ikke. «👥 Eiere» setter navn, om navnet skal vises, og e-post som kobler arkivsporene til en ny konto ved innlogging.
+- **Administratorer:** e-postene i `ADMIN_EMAILS` (firebase-config.js og firestore.rules) med bekreftet e-post, eller rollen *Administrator* gitt i profilen.
+- **Innlogging:** egen visning for «Ny konto», «Glemt passord», og forsøk på å opprette en konto som finnes logger inn i stedet.
+- **Bilmodus:** bildet til sporet vises som stillbilde; beskrivelse og forstørring bare når bilen står stille; dempet bilde om kvelden.
+- **Skjema for nytt spor:** standardvalg alltid synlig (opptak/tekst, bilde, tittel, hvem kan høre, kategori); resten under «Avansert» med sammendrag.
+
+Nye samlinger i Firestore: `sp_archive` (rydding), `sp_legacy_owners` (eiere av arkivspor), `sp_owner_claims` (e-post → eier, privat) og `sp_users/<uid>/unlocks`. **Lim inn den nye `firestore.rules` og publiser.**
+
 ## Versjon 2
 
 Web-appen (`index.html`) kjører på GitHub Pages og bruker Firebase til innlogging, lagring og lyttescore.

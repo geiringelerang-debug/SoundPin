@@ -149,7 +149,33 @@
   #car .speed { font-size: .9rem; opacity: .7; }
   #car .now { font-size: 1.6rem; font-weight: 600; margin: .3rem 0; line-height: 1.2; }
   #car .next { font-size: 1rem; opacity: .8; }
-  #car button { position: absolute; top: .8rem; right: .8rem; background: #333; color: #fff; }
+  #car #car-off { position: absolute; top: .8rem; right: .8rem; background: #333; color: #fff; }
+  /* Bilde av sporet som spilles: stillbilde, fast plassering og størrelse (som albumcover) */
+  #car .cover { display: flex; gap: 1rem; align-items: center; }
+  #car-img { width: 96px; height: 96px; border-radius: 12px; object-fit: cover; background: #222; flex: none; display: none; pointer-events: none; }
+  #car-img.has { display: block; }
+  body.stopped #car-img { pointer-events: auto; cursor: zoom-in; }
+  body.night #car-img { filter: brightness(.6); }
+  #car-desc { display: none; font-size: .9rem; opacity: .75; margin-top: .3rem; }
+  body.stopped #car-desc { display: block; }
+  #zoom { position: fixed; inset: 0; z-index: 4000; background: #000e; display: none; align-items: center; justify-content: center; }
+  #zoom.show { display: flex; }
+  #zoom img { max-width: 100%; max-height: 100%; }
+  .pin.locked { border-color: #8e8e93; background: #f2f2f2; }
+  .chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .chips button { font-size: .8rem; padding: .3rem .7rem; }
+  input[type=range] { accent-color: var(--accent); }
+  /* Admin */
+  .admin-sheet { max-width: 720px; }
+  #ar-map { height: 180px; border-radius: 12px; margin-top: .5rem; }
+  .kbd { font-size: .7rem; opacity: .7; }
+  .ar-btns { display: flex; gap: .4rem; margin-top: .8rem; }
+  .ar-btns button { flex: 1; padding: .75rem .4rem; }
+  .ar-keep { background: var(--verified) !important; color: #fff !important; }
+  .ar-arch { background: #8e8e93 !important; color: #fff !important; }
+  .ar-unsure { background: #f5b301 !important; color: #222 !important; }
+  .q-item { border: 1px solid var(--line); border-radius: 12px; padding: .7rem; margin-top: .6rem; }
+  .q-item img { width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px; }
 
   #toast {
     position: fixed; left: 50%; top: 5.5rem; transform: translateX(-50%); z-index: 3000;
@@ -191,9 +217,16 @@
 <div id="car">
   <button id="car-off">Avslutt</button>
   <div class="speed" id="car-speed">Bilmodus</div>
-  <div class="now" id="car-now">Kjør trygt – spor spilles av automatisk</div>
+  <div class="cover">
+    <img id="car-img" alt="">
+    <div style="flex:1; min-width:0">
+      <div class="now" id="car-now">Kjør trygt – spor spilles av automatisk</div>
+      <div id="car-desc"></div>
+    </div>
+  </div>
   <div class="next" id="car-next"></div>
 </div>
+<div id="zoom"><img id="zoom-img" alt=""></div>
 
 <!-- Nytt spor -->
 <div class="sheet-bg" id="rec-bg"><div class="sheet">
@@ -234,13 +267,18 @@
   </div>
   <div class="hint" id="rec-vis-hint"></div>
 
+  <div id="rec-cat-box">
+    <label>Kategori</label>
+    <div class="chips" id="rec-cats"></div>
+    <input type="text" id="rec-tags" placeholder="Egen kategori (valgfritt, skill med komma)" style="display:none; margin-top:.4rem">
+  </div>
+
   <details id="rec-more">
-    <summary>Flere valg: beskrivelse, kategorier, plassering, skjult spor, sekvens</summary>
+    <summary><b>Avansert</b> <span id="rec-sum"></span></summary>
     <label for="rec-desc">Kort beskrivelse</label>
     <input type="text" id="rec-desc" maxlength="200">
-    <label for="rec-tags">Kategorier (skilt med komma)</label>
-    <input type="text" id="rec-tags" placeholder="historie, natur">
 
+    <div id="rec-adv-place">
     <label>Plassering</label>
     <div class="seg" id="rec-pos">
       <button data-p="me">📍 Min posisjon</button>
@@ -248,12 +286,23 @@
     </div>
     <div class="hint" id="rec-pos-hint"></div>
 
-    <label style="display:flex; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox" id="rec-hidden"> Skjult spor – vises ikke i kartet, må finnes</label>
+    <label for="rec-radius">Radius: <b id="rec-radius-val">50 m</b></label>
+    <input type="range" id="rec-radius" min="10" max="500" step="5" value="50" style="width:100%">
+    <div class="hint" id="rec-radius-hint">Hvor nær man må være før sporet spilles av.</div>
+
+    <label>Hvordan finnes sporet?</label>
+    <div class="seg" id="rec-access">
+      <button data-a="map">Vises i kartet</button>
+      <button data-a="locked">Må være der</button>
+      <button data-a="hidden">Skjult skattejakt</button>
+    </div>
+    <div class="hint" id="rec-access-hint"></div>
 
     <label for="rec-seq">Del av en sekvens</label>
     <select id="rec-seq"></select>
     <input type="text" id="rec-seq-name" placeholder="Navn på ny sekvens, f.eks. «Fister–Hjelmeland»" style="display:none; margin-top:.4rem">
     <div class="hint">Spor i en sekvens spilles bare når du beveger deg i samme retning som sekvensen går. Lag én sekvens for hver kjøreretning.</div>
+    </div>
   </details>
 
   <div class="err" id="rec-err"></div>
@@ -262,6 +311,11 @@
     <button id="rec-save" class="primary">Lagre</button>
   </div>
 </div></div>
+
+<!-- Admin: rydding i arkivet -->
+<div class="sheet-bg" id="ar-bg"><div class="sheet admin-sheet" id="ar"></div></div>
+<!-- Admin: godkjenningskø -->
+<div class="sheet-bg" id="q-bg"><div class="sheet admin-sheet" id="q"></div></div>
 
 <!-- Profil -->
 <div class="sheet-bg" id="prof-bg"><div class="sheet" id="prof"></div></div>
@@ -272,17 +326,21 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script type="module">
-import { firebaseConfig, ADMIN_EMAIL } from "./firebase-config.js";
+import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js";
 
 // ================= Innstillinger =================
 const WALK_VISIBLE = 15;            // vis bare de N mest relevante uhørte sporene i gå-modus
-const MIN_TRIGGER_M = 50;           // minste utløsningsavstand
+const DEFAULT_RADIUS = 50;          // standard radius for et spor (m)
+const MIN_RADIUS = 10, MAX_RADIUS = 500, MAX_RADIUS_USER = 200;
+const RADIUS_SCALE = { near: 0.6, normal: 1, wide: 1.6 };   // brukerens globale «nær / normal / vid»
 const LEAD_SECONDS = 20;            // spill av så tidlig at sporet starter ca. 20 s før du er fremme
+const LOCK_LEAD_SECONDS = 3;        // stedslåste spor: litt slingringsmonn ved fart, så du ikke kjører forbi mellom to GPS-punkter
+const MAX_ACCURACY_BONUS = 30;      // GPS-unøyaktighet som legges til ved opplåsing (m)
 const AHEAD_DEG = 70;               // sporet må ligge innenfor ±70° av kursen når du beveger deg
 const SEQ_DEG = 60;                 // sekvensspor: kursen må være innenfor ±60° av sekvensens retning
-const SECRET_REVEAL_M = 40;         // skjulte spor dukker opp når du er så nær
 const CAR_SPEED = 7;                // m/s (≈25 km/t) – over dette går appen i bilmodus
 const CAR_MAX_SECONDS = 95;         // i bilmodus spilles bare korte spor
+const STOPPED_SPEED = 1.4;          // m/s (≈5 km/t) – under dette regnes bilen som stillestående
 const MAX_SECONDS_USER = 90;        // vanlige brukere
 const MAX_SECONDS_AUTH = 300;       // autoriserte brukere og organisasjoner
 const WORDS_PER_90S = 225;
@@ -290,6 +348,8 @@ const HALF_LIFE_DAYS = 30;          // lyttinger mister halve vekten etter 30 da
 const NEW_BOOST_DAYS = 14;          // nye spor får ekstra synlighet i 14 dager
 const REPLY_BOOST_DAYS = 7;         // et svar gir sporet ny synlighet i 7 dager
 const HIDDEN_TAGS = ["test", "personal messsage", "lifelog", "hytte", "eiendom", "db"];
+const CATEGORIES = ["historie", "lokalhistorie", "natur", "steder", "stedsnavn", "krigen", "dialekt", "familie", "minner", "arkeologi", "kultur", "humor", "quiz"];
+const ACCESS_NAMES = { map: "Vises i kartet", locked: "Vises, men må være der", hidden: "Skjult skattejakt" };
 const DAY = 864e5;
 
 // ================= Tilstand =================
@@ -304,7 +364,14 @@ let tracks = [];                    // alle spor (arkiv + nye)
 let byId = new Map();
 let stats = {};                     // id → {s, c, r, t, boost}
 let heard = new Set(store.get("sp-heard", []));
-let revealed = new Set(store.get("sp-revealed", []));
+let unlocks = store.get("sp-unlocks", {});   // spor-id → tidspunkt for opplåsing (også synket til Firestore)
+// Skjulte spor du fant i forrige versjon regnes som opplåst
+store.get("sp-revealed", []).forEach(id => unlocks[id] ||= Date.now()); store.set("sp-unlocks", unlocks); localStorage.removeItem("sp-revealed");
+let radiusScale = store.get("sp-radius-scale", "normal");
+let armed = new Map();              // spor-id → false etter avspilling, til du har vært utenfor radius + margin
+let accuracy = null, prevMe = null;
+let archiveMeta = {};               // arkiv-id → admins rydding (status, eier, kategori …)
+let legacyOwners = {};              // gammel bruker-id → { name, showName, linkedUid, email }
 let startedThisSession = new Set();
 let activeTag = null, walking = false, heatOn = false, carMode = false, carManual = false;
 let me = null, meMarker = null, watchId = null, course = null, speed = 0, lastFix = null, fastCount = 0, slowSince = null;
@@ -344,7 +411,7 @@ const fmtDist = m => m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)}
 // ================= Lyttescore =================
 function decayed(st, now = Date.now()) {
   const f = st && st.t ? Math.pow(0.5, (now - st.t) / (HALF_LIFE_DAYS * DAY)) : 1;
-  return { s: (st?.s || 0) * f, c: (st?.c || 0) * f, r: (st?.r || 0) * f };
+  return { s: (st?.s || 0) * f, c: (st?.c || 0) * f, r: (st?.r || 0) * f, u: (st?.u || 0) * f };
 }
 // 0–1. Nye spor starter høyt og synker hvis folk ikke hører dem ferdig.
 function quality(t) {
@@ -355,6 +422,7 @@ function quality(t) {
   const boostUntil = Math.max(st.boost || 0, t.createdAt ? t.createdAt + NEW_BOOST_DAYS * DAY : 0);
   if (Date.now() < boostUntil) q += 0.25;
   q += Math.min(0.15, d.r * 0.05);
+  q += Math.min(0.15, d.u * 0.05);    // folk som faktisk har dratt dit
   return Math.max(0.05, Math.min(1, q));
 }
 async function bump(id, field, extra = {}) {
@@ -369,7 +437,7 @@ async function bump(id, field, extra = {}) {
       const snap = await tx.get(r);
       const st = snap.exists() ? snap.data() : {};
       const dd = decayed(st, now); dd[field] += 1;
-      const next = { s: dd.s, c: dd.c, r: dd.r, t: now, boost: Math.max(st.boost || 0, extra.boost || 0) };
+      const next = { s: dd.s, c: dd.c, r: dd.r, u: dd.u, t: now, boost: Math.max(st.boost || 0, extra.boost || 0) };
       tx.set(r, next);
       stats[id] = next;
     });
@@ -378,10 +446,16 @@ async function bump(id, field, extra = {}) {
 
 // ================= Utvalg og relevans =================
 const isHiddenByDefault = t => t.tags.some(x => HIDDEN_TAGS.includes(x));
-const playable = t => (t.audioUrl || (t.kind === "text" && t.text)) && t.lat != null && !t.replyTo;
+const playable = t => (t.audioUrl || (t.kind === "text" && t.text)) && t.lat != null && !t.replyTo && !t.archived;
+const clampRadius = r => Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, Math.round(r || DEFAULT_RADIUS)));
+const trackRadius = t => clampRadius(t.radius);
+const accessOf = t => t.access || (t.hidden ? "hidden" : "map");
+const isLocked = t => accessOf(t) !== "map";
+const isOwn = t => !!(user && t.creator && t.creator === user.uid);
+const isUnlocked = t => !isLocked(t) || !!unlocks[t.id] || isOwn(t);
 function secretVisible(t) {
-  if (!t.hidden) return true;
-  if (revealed.has(t.id) || heard.has(t.id) || (user && t.creator === user.uid)) return true;
+  if (accessOf(t) !== "hidden" || isUnlocked(t) || isAdmin()) return true;   // admin ser skjulte spor (med lås) for å kunne moderere
+  // Neste spor i en skattejakt dukker opp (med lås) når du har hørt det forrige
   if (t.seqId && t.seqNo > 1) {
     const prev = tracks.find(x => x.seqId === t.seqId && x.seqNo === t.seqNo - 1);
     if (prev && heard.has(prev.id)) return true;
@@ -390,7 +464,8 @@ function secretVisible(t) {
 }
 function baseList() {
   let list = tracks.filter(playable);
-  if (activeTag === "__mine") list = list.filter(t => user && t.creator === user.uid);
+  if (activeTag === "__mine") list = list.filter(isOwn);
+  else if (activeTag === "__unlocked") list = list.filter(t => unlocks[t.id] && !isOwn(t));
   else if (activeTag) list = list.filter(t => t.tags.includes(activeTag));
   else list = list.filter(t => !isHiddenByDefault(t));
   return list;
@@ -414,8 +489,9 @@ function visibleTracks() {
 function markerFor(t) {
   const q = quality(t);
   const size = Math.round(24 + 18 * q);
-  const cls = ["pin", t.label === "verified" ? "verified" : t.label === "ai" ? "ai" : "", heard.has(t.id) ? "heard" : "", t.hidden ? "secret" : ""].join(" ");
-  const inner = t.creatorIcon ? `<img src="${esc(t.creatorIcon)}" alt="">` : (t.kind === "text" ? "✍" : t.hidden ? "🗝" : "🔊");
+  const locked = !isUnlocked(t);
+  const cls = ["pin", t.label === "verified" ? "verified" : t.label === "ai" ? "ai" : "", heard.has(t.id) ? "heard" : "", accessOf(t) === "hidden" ? "secret" : "", locked ? "locked" : ""].join(" ");
+  const inner = locked ? "🔒" : t.creatorIcon ? `<img src="${esc(t.creatorIcon)}" alt="">` : (t.kind === "text" ? "✍" : accessOf(t) === "hidden" ? "🗝" : "🔊");
   const icon = L.divIcon({ className: "", html: `<div class="${cls}" style="--s:${size}px; --o:${(0.55 + 0.45 * q).toFixed(2)}">${inner}</div>`, iconSize: [0, 0] });
   const m = L.marker([t.lat, t.lng], { icon, title: t.title || "" });
   m.on("click", () => play(t));
@@ -427,7 +503,7 @@ function render() {
   if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
   if (heatOn) {
     // Varmekart: alle spor unntatt skjulte, uavhengig av 15-grensen
-    const pts = baseList().filter(t => !t.hidden).map(t => [t.lat, t.lng, 0.6]);
+    const pts = baseList().filter(t => accessOf(t) !== "hidden").map(t => [t.lat, t.lng, 0.6]);
     heatLayer = L.heatLayer(pts, { radius: 22, blur: 18, maxZoom: 15 }).addTo(map);
   } else {
     cluster.addLayers(list.filter(t => t.legacy).map(markerFor));
@@ -435,7 +511,7 @@ function render() {
   }
   const total = tracks.filter(playable).length;
   $("status").textContent = heatOn ? `Varmekart · ${total} spor`
-    : walking ? (me ? `Gå-modus: ${list.length} mest relevante uhørte spor · ${heard.size} hørt` : "Venter på posisjon …")
+    : walking ? (me ? `Gå-modus: ${list.length} mest relevante uhørte spor · ${heard.size} hørt${accuracy != null ? ` · GPS ±${Math.round(accuracy)} m` : ""}` : "Venter på posisjon …")
     : `${list.length} av ${total} spor${activeTag ? ` med «${activeTag}»` : ""} · ${heard.size} hørt`;
 }
 function renderTags() {
@@ -450,7 +526,8 @@ function renderTags() {
     box.appendChild(b);
   };
   mk("Alle", null);
-  if (user && tracks.some(t => t.creator === user.uid)) mk("⭐ Mine spor", "__mine");
+  if (user && tracks.some(isOwn)) mk("⭐ Mine spor", "__mine");
+  if (tracks.some(t => unlocks[t.id] && !isOwn(t))) mk("🔓 Opplåst", "__unlocked");
   top.forEach(x => mk(x, x));
 }
 
@@ -485,7 +562,8 @@ function speak(t) {
 function play(t) {
   stopAll();
   current = t;
-  if (t.hidden && !revealed.has(t.id)) { revealed.add(t.id); store.set("sp-revealed", [...revealed]); }
+  armed.set(t.id, false);
+  if (!isUnlocked(t)) return showLocked(t);
   $("p-name").textContent = t.title || "Uten navn";
   $("p-desc").textContent = t.desc || "";
   const lbl = t.label || "local";
@@ -494,9 +572,10 @@ function play(t) {
   if (t.tags.length) bits.push(esc(t.tags.join(" · ")));
   if (me) bits.push(fmtDist(dist(me, t)) + " unna");
   if (t.seqName) bits.push(`Sekvens «${esc(t.seqName)}» #${t.seqNo}`);
+  if (isLocked(t) && unlocks[t.id]) bits.push(`🔓 Låst opp ${new Date(unlocks[t.id]).toLocaleDateString("nb-NO")}`);
   bits.push(`Lyttescore ${Math.round(quality(t) * 100)} %`);
   const vis = t.visibility === "private" ? '<span class="badge grey">Bare meg</span>' : t.visibility === "friends" ? '<span class="badge grey">Venner</span>' : "";
-  $("p-meta").innerHTML = `<span class="badge ${lbl}">${LABELS[lbl]}</span>${t.kind === "text" ? '<span class="badge grey">Syntetisk stemme</span>' : ""}${t.hidden ? '<span class="badge grey">Skjult spor</span>' : ""}${vis}<br>${bits.join("  ·  ")}`;
+  $("p-meta").innerHTML = `<span class="badge ${lbl}">${LABELS[lbl]}</span>${t.kind === "text" ? '<span class="badge grey">Syntetisk stemme</span>' : ""}${accessOf(t) === "hidden" ? '<span class="badge grey">Skjult spor</span>' : accessOf(t) === "locked" ? '<span class="badge grey">Må være der</span>' : ""}${vis}<br>${bits.join("  ·  ")}`;
   const img = $("p-img");
   if (t.imageUrl) { img.src = t.imageUrl; img.style.display = "block"; } else { img.removeAttribute("src"); img.style.display = "none"; }
   $("player").classList.add("show"); document.body.classList.add("has-player");
@@ -510,7 +589,38 @@ function play(t) {
     audio.play().catch(() => {});
   }
   renderActions(t); renderReplies(t);
+  setCarNow(t);
+  if (!walking) map.panTo([t.lat, t.lng]);
+}
+// Bilmodus: bildet byttes bare når et nytt spor starter. Beskrivelse og forstørring bare når bilen står stille (CSS: body.stopped).
+function setCarNow(t) {
   $("car-now").textContent = t.title || "Uten navn";
+  $("car-desc").textContent = t.desc || "";
+  const img = $("car-img");
+  if (t.imageUrl) { img.src = t.imageUrl; img.classList.add("has"); } else { img.removeAttribute("src"); img.classList.remove("has"); }
+}
+$("car-img").onclick = () => { if (!document.body.classList.contains("stopped") || !$("car-img").src) return; $("zoom-img").src = $("car-img").src; $("zoom").classList.add("show"); };
+$("zoom").onclick = () => $("zoom").classList.remove("show");
+const setNight = () => { const h = new Date().getHours(); document.body.classList.toggle("night", h >= 17 || h < 7); };
+setNight(); setInterval(setNight, 10 * 60000);
+// Låst spor: vis bare tittel, bilde og avstand – innholdet krever at du drar dit
+function showLocked(t) {
+  $("p-name").textContent = t.title || "Låst spor";
+  $("p-desc").textContent = "";
+  const d = me ? ` Du er ${fmtDist(dist(me, t))} unna.` : " Slå på gå-modus så appen vet hvor du er.";
+  $("p-meta").innerHTML = `<span class="badge grey">🔒 Må være der</span><br>Dra hit for å låse opp sporet (innen ${trackRadius(t)} m).${d} Når det er låst opp, kan du høre det igjen hvor som helst og legge igjen et svar.`;
+  const img = $("p-img");
+  if (t.imageUrl) { img.src = t.imageUrl; img.style.display = "block"; } else { img.removeAttribute("src"); img.style.display = "none"; }
+  audio.style.display = "none"; audio.removeAttribute("src"); $("p-tts").style.display = "none";
+  $("p-replies").style.display = "none";
+  const box = $("p-actions"); box.innerHTML = "";
+  const b = document.createElement("button"); b.textContent = "🧭 Vis i kartet"; b.onclick = () => map.setView([t.lat, t.lng], 17); box.appendChild(b);
+  if (isVerifier()) {   // admin/verifikator kan høre innholdet uten å låse det opp
+    const a = document.createElement("button"); a.textContent = "▶ Hør (admin)";
+    a.onclick = () => { const was = unlocks[t.id]; unlocks[t.id] = 1; play(t); if (!was) delete unlocks[t.id]; };
+    box.appendChild(a);
+  }
+  $("player").classList.add("show"); document.body.classList.add("has-player");
   if (!walking) map.panTo([t.lat, t.lng]);
 }
 $("tts-btn").onclick = () => {
@@ -525,7 +635,7 @@ $("close").onclick = () => { stopAll(); $("player").classList.remove("show"); do
 function renderActions(t) {
   const box = $("p-actions"); box.innerHTML = "";
   const add = (label, fn, cls = "") => { const b = document.createElement("button"); b.textContent = label; b.className = cls; b.onclick = fn; box.appendChild(b); };
-  add("💬 Svar", () => openRecorder({ replyTo: t }));
+  add("💬 Svar", () => openRecorder({ replyTo: t }));   // play() viser bare opplåste spor, så alle her kan svare
   add("🔗 Del", () => {
     const url = `${location.origin}${location.pathname}?pin=${encodeURIComponent(t.id)}`;
     (navigator.share ? navigator.share({ title: t.title || "SoundPin", url }) : navigator.clipboard.writeText(url).then(() => toast("Lenken er kopiert"))).catch(() => {});
@@ -534,6 +644,12 @@ function renderActions(t) {
   if (fb && user && !t.legacy && isVerifier()) {
     add(t.label === "verified" ? "Fjern verifisering" : "✓ Verifiser", () => setLabel(t, t.label === "verified" ? "local" : "verified"));
   }
+  if (fb && user && !t.legacy && isVerifier() && t.review === "pending") add("✅ Godkjenningskø", openQueue);
+  if (fb && user && !t.legacy && isAdmin() && !isOwn(t) && t.visibility === "public") add("⤺ Trekk tilbake", () => {
+    const note = prompt("Hvorfor trekkes sporet tilbake? (vises for den som laget det)", ""); if (note == null) return;
+    review(t, { visibility: "friends", review: "rejected", reviewNote: note.slice(0, 300) });
+  });
+  if (fb && user && t.legacy && isAdmin()) add("🧹 Rydd", () => { $("close").click(); openArchive({ only: t.id }); });
   if (fb && user && !t.legacy && (t.creator === user.uid || isAdmin())) add("🗑 Slett", () => removeTrack(t));
 }
 function renderReplies(t) {
@@ -544,17 +660,35 @@ function renderReplies(t) {
   box.innerHTML = `<h3>Svar (${reps.length})</h3>`;
   reps.forEach(r => {
     const row = document.createElement("div"); row.className = "reply";
-    row.innerHTML = `<button>▶</button><span><b>${esc(r.creatorName || "Ukjent")}</b> ${esc(r.title || "")}</span>`;
+    const here = r.wasHere ? ` <span class="badge grey" title="Låste opp sporet på stedet">📍 var her ${new Date(r.wasHere).toLocaleDateString("nb-NO")}</span>` : "";
+    row.innerHTML = `<button>▶</button><span><b>${esc(r.creatorName || "Ukjent")}</b>${here} ${esc(r.title || "")}</span>`;
     row.querySelector("button").onclick = () => play(r);
     box.appendChild(row);
   });
 }
 
 // ================= Gå-modus og bilmodus =================
+// Avstand fra spor til strekningen du har beveget deg siden forrige GPS-punkt (så du ikke «hopper over» små radiuser i fart)
+function segDist(a, b, t) {
+  if (!a) return dist(b, t);
+  const k = Math.cos(rad(t.lat)) * 111320, ky = 110540;
+  const ax = (a.lng - t.lng) * k, ay = (a.lat - t.lat) * ky, bx = (b.lng - t.lng) * k, by = (b.lat - t.lat) * ky;
+  const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+  const u = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L)) : 0;
+  return Math.hypot(ax + u * dx, ay + u * dy);
+}
+const scaledRadius = t => trackRadius(t) * (RADIUS_SCALE[radiusScale] || 1);
+// Åpne spor starter litt før du er fremme; jo raskere du beveger deg, desto tidligere
+const reach = t => Math.max(scaledRadius(t), speed * LEAD_SECONDS);
+// Stedslåste spor: du må faktisk være innenfor radiusen sporet er laget med
+const lockReach = t => trackRadius(t) + Math.min(accuracy || 0, MAX_ACCURACY_BONUS) + Math.min(speed, 40) * LOCK_LEAD_SECONDS;
+const rearmAt = t => reach(t) + Math.max(30, trackRadius(t) * 0.5);   // hysterese
+
 function shouldTrigger(t, d) {
-  if (user && t.creator === user.uid) return false;                                // egne spor spilles ikke automatisk
-  const lead = Math.max(MIN_TRIGGER_M, speed * LEAD_SECONDS);
-  if (d > lead) return false;
+  if (isOwn(t) && !t.legacy) return false;                                         // egne nye spor spilles ikke automatisk
+  if (armed.get(t.id) === false) return false;                                     // nettopp spilt – venter til du har vært utenfor
+  if (!isUnlocked(t)) return false;
+  if (d > reach(t)) return false;
   if (carMode && (t.duration || 0) > CAR_MAX_SECONDS) return false;
   if (course != null && speed > 1.5) {
     if (t.seqDir != null && angleDiff(course, t.seqDir) > SEQ_DEG) return false;   // feil retning for sekvensen
@@ -562,16 +696,27 @@ function shouldTrigger(t, d) {
   }
   return true;
 }
+function unlock(t) {
+  const at = Date.now();
+  unlocks[t.id] = at; store.set("sp-unlocks", unlocks);
+  bump(t.id, "u");
+  if (fb && user) fb.setDoc(fb.doc(fb.db, "sp_users", user.uid, "unlocks", t.id), { at }).catch(e => console.warn("Opplåsing ikke lagret", e));
+}
 function checkNearby() {
   if (!walking || !me) return;
-  // Skjulte spor dukker opp når du er nær nok
-  let changed = false;
-  baseList().forEach(t => {
-    if (t.hidden && !revealed.has(t.id) && dist(me, t) <= SECRET_REVEAL_M) { revealed.add(t.id); changed = true; toast("🗝 Du fant et skjult spor!"); }
-  });
-  if (changed) { store.set("sp-revealed", [...revealed]); render(); }
+  // Hysterese: spor som er spilt kan utløses igjen først når du har vært et stykke utenfor
+  for (const [id, v] of armed) { const t = byId.get(id); if (v === false && (!t || dist(me, t) > rearmAt(t))) armed.delete(id); }
+  // Stedslåste og skjulte spor låses opp når du er innenfor radiusen
+  const opened = [];
+  baseList().forEach(t => { if (!isUnlocked(t) && segDist(prevMe, me, t) <= lockReach(t)) { unlock(t); opened.push(t); } });
+  if (opened.length) {
+    toast(opened.length === 1 ? `🔓 Du låste opp «${opened[0].title || "et spor"}»!` : `🔓 Du låste opp ${opened.length} spor!`, 4000);
+    if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+    renderTags(); render();
+  }
   const busy = current && ((!audio.paused && !audio.ended) || speaking);
-  const cand = visibleTracks().map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d)).sort((a, b) => a.d - b.d);
+  const pool = [...new Set([...visibleTracks(), ...opened])];
+  const cand = pool.map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d) || (opened.includes(x.t) && !isOwn(x.t))).sort((a, b) => a.d - b.d);
   if (carMode) $("car-next").textContent = cand[0] && !busy ? "" : nextAheadText();
   if (busy || !cand.length) return;
   play(cand[0].t);
@@ -593,6 +738,7 @@ function onPosition(pos) {
     const d = dist(lastFix.p, p), dt = (now - lastFix.t) / 1000;
     if (d >= 8) { course = bearing(lastFix.p, p); lastFix = { p, t: now }; }
     speed = pos.coords.speed != null && pos.coords.speed >= 0 ? pos.coords.speed : (dt > 0 ? d / dt : speed);
+    speed = Math.min(speed, 70);   // GPS-hopp skal ikke gi absurde farter
   } else lastFix = { p, t: now };
   if (pos.coords.heading != null && !isNaN(pos.coords.heading) && speed > 1.5) course = pos.coords.heading;
   // Bilmodus slås på automatisk ved høy fart og av igjen etter 30 s med lav fart
@@ -601,7 +747,9 @@ function onPosition(pos) {
     else { fastCount = 0; if (carMode && speed < 3) { slowSince ??= now; if (now - slowSince > 30000) setCar(false); } }
   }
   $("car-speed").textContent = `Bilmodus · ${Math.round(speed * 3.6)} km/t`;
-  const first = !me; me = p;
+  accuracy = pos.coords.accuracy ?? null;
+  document.body.classList.toggle("stopped", speed < STOPPED_SPEED);
+  const first = !me; prevMe = me; me = p;
   const html = `<div class="me ${course != null ? "dir" : ""}" style="--rot:${course || 0}deg"></div>`;
   if (!meMarker) meMarker = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html, iconSize: [18, 18] }), interactive: false, zIndexOffset: 1000 }).addTo(map);
   else { meMarker.setLatLng([p.lat, p.lng]); meMarker.setIcon(L.divIcon({ className: "", html, iconSize: [18, 18] })); }
@@ -642,13 +790,21 @@ function computeSequences() {
 }
 
 // ================= Data =================
+// Arkivspor fra den gamle appen, med adminens rydding (sp_archive) og eier (sp_legacy_owners) lagt over
 function normLegacy(p) {
+  const m = archiveMeta[p.id] || {};
+  const ownerId = m.owner || p.creator;
+  const o = legacyOwners[ownerId] || {};
   return {
-    id: p.id, title: p.name, desc: p.description, lat: p.lat, lng: p.lng, tags: p.tags || [],
-    audioUrl: p.audioUrl, imageUrl: p.imageUrl, kind: "audio", label: "local", legacy: true,
-    creatorName: "SoundPin-arkivet", visibility: "public", createdAt: p.createdAt ? Date.parse(p.createdAt) : 0
+    id: p.id, title: m.title ?? p.name, desc: m.desc ?? p.description, lat: p.lat, lng: p.lng, tags: m.tags || p.tags || [],
+    audioUrl: p.audioUrl, imageUrl: p.imageUrl, kind: "audio", label: m.label || "local", legacy: true,
+    legacyOwner: ownerId, creator: o.linkedUid || null,
+    creatorName: o.showName && o.name ? o.name : "SoundPin-arkivet", visibility: "public",
+    radius: m.radius || null, access: m.access || "map", status: m.status || null, archived: m.status === "archived",
+    createdAt: p.createdAt ? Date.parse(p.createdAt) : 0
   };
 }
+let rawLegacy = null;
 function normTrack(id, d) {
   return { id, ...d, tags: d.tags || [], label: d.label || "local", createdAt: d.createdAt || 0, seqNo: d.seqNo || 0 };
 }
@@ -657,15 +813,21 @@ function setTracks(list) {
   computeSequences(); renderTags(); render();
 }
 async function loadAll() {
-  let legacy = [];
-  try { legacy = (await (await fetch("data/pins.json")).json()).map(normLegacy); }
-  catch (e) { $("status").textContent = "Kunne ikke laste arkivet: " + e.message; }
+  if (!rawLegacy) {
+    try { rawLegacy = await (await fetch("data/pins.json")).json(); }
+    catch (e) { $("status").textContent = "Kunne ikke laste arkivet: " + e.message; rawLegacy = []; }
+  }
   let fresh = [];
   if (fb) {
     const { collection, query, where, getDocs } = fb;
+    try { archiveMeta = {}; (await getDocs(collection(fb.db, "sp_archive"))).forEach(d => archiveMeta[d.id] = d.data()); }
+    catch (e) { console.warn("Arkivrydding ikke lastet", e); }
+    try { legacyOwners = {}; (await getDocs(collection(fb.db, "sp_legacy_owners"))).forEach(d => legacyOwners[d.id] = d.data()); }
+    catch (e) { console.warn("Arkiveiere ikke lastet", e); }
     const col = collection(fb.db, "sp_tracks");
     const qs = [query(col, where("visibility", "==", "public"))];
     if (user) { qs.push(query(col, where("creator", "==", user.uid))); qs.push(query(col, where("allowed", "array-contains", user.uid))); }
+    if (isVerifier()) qs.push(query(col, where("review", "==", "pending")));
     const seen = new Map();
     for (const q of qs) {
       try { (await getDocs(q)).forEach(s => seen.set(s.id, normTrack(s.id, s.data()))); }
@@ -675,7 +837,7 @@ async function loadAll() {
     try { (await getDocs(collection(fb.db, "sp_stats"))).forEach(s => stats[s.id] = s.data()); }
     catch (e) { console.warn("Lyttescore ikke lastet", e); }
   }
-  setTracks([...legacy, ...fresh]);
+  setTracks([...rawLegacy.map(normLegacy), ...fresh]);
 }
 
 // ================= Firebase =================
@@ -694,7 +856,8 @@ async function initFirebase() {
   return true;
 }
 const isReal = () => user && !user.isAnonymous;
-const isAdmin = () => isReal() && user.email === ADMIN_EMAIL;
+const adminByEmail = () => isReal() && user.emailVerified && ADMIN_EMAILS.includes((user.email || "").toLowerCase());
+const isAdmin = () => adminByEmail() || (isReal() && profile?.role === "admin");
 const role = () => isAdmin() ? "admin" : (profile?.role || "user");
 const canPublic = () => ["authorized", "verifier", "admin"].includes(role());
 const isVerifier = () => ["verifier", "admin"].includes(role());
@@ -742,7 +905,13 @@ async function signInEmail(email, pass, create) {
       if (user && user.isAnonymous) await fb.linkWithCredential(user, fb.EmailAuthProvider.credential(email, pass));
       else await fb.createUserWithEmailAndPassword(fb.auth, email, pass);
     } else await fb.signInWithEmailAndPassword(fb.auth, email, pass);
-  } catch (e) { return authMsg(e); }
+  } catch (e) {
+    if (create && ["auth/email-already-in-use", "auth/credential-already-in-use"].includes(e.code)) {
+      // Kontoen finnes allerede: prøv å logge inn med det som er skrevet
+      try { await fb.signInWithEmailAndPassword(fb.auth, email, pass); }
+      catch { return "Du har allerede en konto med denne e-posten. Skriv riktig passord under «Logg inn», eller trykk «Glemt passord»."; }
+    } else return authMsg(e);
+  }
   if (fb.auth.currentUser && fb.auth.currentUser.uid === before) { user = fb.auth.currentUser; await afterSignIn(); }
   return null;
 }
@@ -761,9 +930,35 @@ async function afterSignIn() {
     members = (await fb.getDocs(fb.collection(fb.db, "sp_users", user.uid, "members"))).docs.map(d => ({ uid: d.id, ...d.data() }));
   } catch (e) { console.warn("Profil ikke lastet", e); toast("Profilen kunne ikke lagres: " + (e.code || e.message) + ". Er sikkerhetsreglene publisert?", 8000); }
   updateMeButton();
+  await syncUnlocks();
+  await claimLegacy();
   await handleInvite();
   await loadAll();
   syncFriendAccess();
+}
+// Opplåste spor følger kontoen: slå sammen det som ligger på telefonen med det som ligger i Firebase
+async function syncUnlocks() {
+  if (!fb || !user) return;
+  try {
+    const col = fb.collection(fb.db, "sp_users", user.uid, "unlocks");
+    const remote = {}; (await fb.getDocs(col)).forEach(d => remote[d.id] = d.data().at);
+    for (const [id, at] of Object.entries(unlocks)) if (!remote[id]) await fb.setDoc(fb.doc(col, id), { at });
+    unlocks = { ...remote, ...unlocks }; store.set("sp-unlocks", unlocks);
+  } catch (e) { console.warn("Opplåsinger ikke synket", e); }
+}
+// Har admin knyttet arkivspor til e-posten din, overtar du dem når du logger inn
+async function claimLegacy() {
+  if (!isReal() || !user.email || !user.emailVerified) return;
+  try {
+    const c = await fb.getDoc(fb.doc(fb.db, "sp_owner_claims", user.email.toLowerCase()));
+    if (!c.exists()) return;
+    let n = 0;
+    for (const lu of c.data().legacyUids || []) {
+      const ref = fb.doc(fb.db, "sp_legacy_owners", lu), o = await fb.getDoc(ref);
+      if (o.exists() && o.data().linkedUid !== user.uid) { await fb.updateDoc(ref, { linkedUid: user.uid }); n++; }
+    }
+    if (n) toast("Sporene dine fra den gamle appen er nå knyttet til kontoen din.", 5000);
+  } catch (e) { console.warn("Arkivspor ikke knyttet", e); }
 }
 function updateMeButton() {
   const b = $("me-btn");
@@ -796,26 +991,47 @@ async function handleInvite() {
 }
 
 // ================= Profil =================
+// Innlogging: Google øverst, deretter e-post. «Logg inn» og «Ny konto» er to adskilte visninger.
+function renderLogin(box, mode) {
+  const create = mode === "create";
+  box.innerHTML = `<h2>${create ? "Ny konto" : "Logg inn"}</h2>
+    ${create ? "" : `<p>Du kan lytte uten å logge inn. For å lage spor, svare, bli venn eller få ditt eget ikon må du logge inn.</p>
+    <button class="primary" id="pf-login" style="width:100%; padding:.75rem">Logg inn med Google</button>
+    <label>Eller med e-post og passord</label>`}
+    <input type="text" id="pf-email" inputmode="email" autocomplete="email" placeholder="E-post"${create ? ' style="margin-top:.4rem"' : ""}>
+    <input type="password" id="pf-pass" placeholder="${create ? "Velg passord (minst 6 tegn)" : "Passord"}" style="margin-top:.4rem" autocomplete="${create ? "new-password" : "current-password"}">
+    ${create ? '<input type="password" id="pf-pass2" placeholder="Gjenta passordet" style="margin-top:.4rem" autocomplete="new-password">' : ""}
+    <button class="${create ? "primary" : ""}" id="pf-go" style="width:100%; margin-top:.6rem; padding:.65rem">${create ? "Opprett konto" : "Logg inn med e-post"}</button>
+    <div class="hint" style="margin-top:.6rem; text-align:center">
+      ${create ? '<a href="#" id="pf-switch">Har du allerede konto? Logg inn</a>'
+               : '<a href="#" id="pf-switch">Har du ikke konto? Opprett en her</a> · <a href="#" id="pf-forgot">Glemt passord</a>'}
+    </div>
+    <div class="err" id="pf-err"></div>
+    <div class="footer"><button id="pf-close">Lukk</button></div>`;
+  const err = m => $("pf-err").textContent = m || "";
+  const done = msg => { if (msg) err(msg); else if (isReal()) { $("prof-bg").classList.remove("show"); toast("Du er logget inn."); } };
+  if (!create) $("pf-login").onclick = async () => { err(); done(await signIn()); };
+  $("pf-switch").onclick = e => { e.preventDefault(); const em = $("pf-email").value; renderLogin(box, create ? "login" : "create"); $("pf-email").value = em; };
+  if (!create) $("pf-forgot").onclick = async e => {
+    e.preventDefault();
+    const em = $("pf-email").value.trim();
+    if (!em) { err("Skriv inn e-posten din først, så sender vi en lenke for å lage nytt passord."); return; }
+    try { await fb.sendPasswordResetEmail(fb.auth, em); err(); toast("Sjekk e-posten din for en lenke til nytt passord.", 5000); }
+    catch (e2) { err(authMsg(e2)); }
+  };
+  $("pf-go").onclick = async () => {
+    const em = $("pf-email").value.trim(), pw = $("pf-pass").value;
+    if (!em || !pw) { err("Fyll inn e-post og passord."); return; }
+    if (create && pw !== $("pf-pass2").value) { err("Passordene er ikke like."); return; }
+    err(); done(await signInEmail(em, pw, create));
+  };
+  $("pf-close").onclick = () => $("prof-bg").classList.remove("show");
+}
 function openProfile() {
   const box = $("prof");
   if (!fb) { box.innerHTML = `<h2>Profil</h2><p>Innlogging er ikke satt opp ennå. Firebase-konfigurasjonen mangler i <code>firebase-config.js</code>.</p><div class="footer"><button onclick="document.getElementById('prof-bg').classList.remove('show')">Lukk</button></div>`; $("prof-bg").classList.add("show"); return; }
   if (!isReal()) {
-    box.innerHTML = `<h2>Logg inn</h2><p>Du kan lytte uten å logge inn. For å lage spor, svare, bli venn eller få ditt eget ikon må du logge inn.</p>
-      <button class="primary" id="pf-login" style="width:100%; padding:.75rem">Logg inn med Google</button>
-      <label>Eller med e-post og passord</label>
-      <input type="text" id="pf-email" inputmode="email" autocomplete="email" placeholder="E-post">
-      <input type="password" id="pf-pass" placeholder="Passord (minst 6 tegn)" style="margin-top:.4rem" autocomplete="current-password">
-      <div class="row" style="margin-top:.5rem"><button id="pf-elogin" style="flex:1">Logg inn</button><button id="pf-ecreate" style="flex:1">Ny konto</button></div>
-      <div class="err" id="pf-err"></div>
-      <div class="footer"><button id="pf-close">Lukk</button></div>`;
-    const done = msg => { if (msg) $("pf-err").textContent = msg; else if (isReal()) { $("prof-bg").classList.remove("show"); toast("Du er logget inn."); } };
-    $("pf-login").onclick = async () => { $("pf-err").textContent = ""; done(await signIn()); };
-    const em = create => async () => {
-      const e = $("pf-email").value.trim(), p = $("pf-pass").value;
-      if (!e || !p) { $("pf-err").textContent = "Fyll inn e-post og passord."; return; }
-      $("pf-err").textContent = ""; done(await signInEmail(e, p, create));
-    };
-    $("pf-elogin").onclick = em(false); $("pf-ecreate").onclick = em(true);
+    renderLogin(box, "login");
   } else {
     const link = `${location.origin}${location.pathname}?venn=${user.uid}&k=${profile?.inviteCode || ""}`;
     box.innerHTML = `<h2>Profil</h2>
@@ -824,6 +1040,10 @@ function openProfile() {
       <label for="pf-name">Navn som vises på sporene dine</label><input type="text" id="pf-name" value="${esc(profile?.name || "")}" maxlength="60">
       <label>Eget ikon i kartet</label><input type="file" id="pf-file" accept="image/*">
       <div class="hint">${role() === "user" ? "Som ny bruker kan du dele med venner. Når du får autorisert status, kan du dele med alle." : "Du kan dele spor med alle."}</div>
+      ${ADMIN_EMAILS.includes((user.email || "").toLowerCase()) && !user.emailVerified && !isAdmin() ? `<div class="hint" style="color:#c00">E-posten er ikke bekreftet ennå, så administratortilgangen er ikke aktiv. <a href="#" id="pf-verify">Send bekreftelse</a> og logg inn på nytt etterpå.</div>` : ""}
+      <label>Avstand før spor spilles av</label>
+      <div class="seg" id="pf-scale"><button data-s="near">Nær</button><button data-s="normal">Normal</button><button data-s="wide">Vid</button></div>
+      <div class="hint">Skalerer radiusen på alle spor (unntatt spor som krever at du er der).</div>
       <label>Inviter venner</label>
       <div class="row"><input type="text" readonly value="${esc(link)}" id="pf-link"><button id="pf-copy">Kopier</button></div>
       <div class="hint">De som åpner lenken og logger inn, kan høre sporene du deler med «Venner».</div>
@@ -848,7 +1068,13 @@ function openProfile() {
     $("pf-out").onclick = async () => { await fb.signOut(fb.auth); $("prof-bg").classList.remove("show"); location.reload(); };
     $("pf-save").onclick = saveProfile;
     $("pf-file").onchange = () => { const f = $("pf-file").files[0]; if (f) $("pf-icon").src = URL.createObjectURL(f); };
-    if (isAdmin()) renderAdmin();
+    seg("pf-scale", "s", radiusScale);
+    $("pf-scale").onclick = e => { const v = e.target.dataset.s; if (!v) return; radiusScale = v; store.set("sp-radius-scale", v); seg("pf-scale", "s", v); };
+    if ($("pf-verify")) $("pf-verify").onclick = async e => {
+      e.preventDefault();
+      try { await fb.sendEmailVerification(user); toast("Bekreftelse er sendt. Trykk på lenken i e-posten, og logg inn på nytt.", 6000); } catch (er) { toast("Feil: " + (er.code || er.message)); }
+    };
+    if (isVerifier()) renderAdmin();
   }
   $("pf-close").onclick = () => $("prof-bg").classList.remove("show");
   $("prof-bg").classList.add("show");
@@ -856,7 +1082,9 @@ function openProfile() {
 // Egne spor med lyttescore og historikk; her kan de også slettes
 function renderMyTracks() {
   const box = $("pf-tracks"); if (!box) return;
-  const mine = tracks.filter(t => t.creator === user.uid).sort((a, b) => b.createdAt - a.createdAt);
+  const mine = tracks.filter(t => t.creator === user.uid && !t.legacy).sort((a, b) => b.createdAt - a.createdAt);
+  const old = tracks.filter(t => t.legacy && t.creator === user.uid && !t.archived).length;
+  if (old) setTimeout(() => box.insertAdjacentHTML("afterbegin", `<div class="hint">${old} spor fra den gamle appen er knyttet til deg.</div>`), 0);
   if (!mine.length) { box.innerHTML = '<div class="hint">Ingen ennå. Trykk på krysset i kartet for å lage ditt første spor.</div>'; return; }
   const VIS = { private: "Bare meg", friends: "Venner", public: "Alle" };
   box.innerHTML = "";
@@ -865,7 +1093,7 @@ function renderMyTracks() {
     const replies = tracks.filter(x => x.replyTo === t.id).length;
     const r = document.createElement("div"); r.className = "list-row";
     r.innerHTML = `<span><b>${esc(t.title || "Uten navn")}</b>${t.replyTo ? " (svar)" : ""}<br><span class="hint">
-      ${new Date(t.createdAt).toLocaleDateString("nb-NO")} · ${VIS[t.visibility] || ""}${t.hidden ? " · skjult" : ""}${t.seqName ? ` · ${esc(t.seqName)} #${t.seqNo}` : ""}<br>
+      ${new Date(t.createdAt).toLocaleDateString("nb-NO")} · ${VIS[t.visibility] || ""}${isLocked(t) ? " · " + ACCESS_NAMES[accessOf(t)].toLowerCase() : ""} · ${trackRadius(t)} m${t.review === "pending" ? " · <b>venter på godkjenning</b>" : t.review === "rejected" ? ` · <b>avvist</b>${t.reviewNote ? ": " + esc(t.reviewNote) : ""}` : ""}${t.seqName ? ` · ${esc(t.seqName)} #${t.seqNo}` : ""}<br>
       Score ${Math.round(quality(t) * 100)} % · ${Math.round(d.s)} startet · ${Math.round(d.c)} hørt ferdig · ${replies} svar</span></span>
       <button>Vis</button><button>Slett</button>`;
     const [show, del] = r.querySelectorAll("button");
@@ -897,13 +1125,19 @@ async function saveProfile() {
 }
 async function renderAdmin() {
   const box = $("pf-admin");
-  box.innerHTML = `<label>Administrasjon – brukere og roller</label><div id="ad-users" class="hint">Laster …</div><label>Rapporterte spor</label><div id="ad-reports" class="hint">Laster …</div>`;
+  const pending = tracks.filter(t => t.review === "pending").length;
+  box.innerHTML = `<label>Administrasjon</label>
+    <div class="row"><button id="ad-queue" style="flex:1">✅ Godkjenningskø (${pending})</button>${isAdmin() ? '<button id="ad-archive" style="flex:1">🧹 Rydd arkivet</button>' : ""}</div>
+    ${isAdmin() ? `<label>Brukere og roller</label><div id="ad-users" class="hint">Laster …</div><label>Rapporterte spor</label><div id="ad-reports" class="hint">Laster …</div>` : ""}`;
+  $("ad-queue").onclick = () => { $("prof-bg").classList.remove("show"); openQueue(); };
+  if (!isAdmin()) return;
+  $("ad-archive").onclick = () => { $("prof-bg").classList.remove("show"); openArchive(); };
   try {
     const us = (await fb.getDocs(fb.collection(fb.db, "sp_users"))).docs;
     const ub = $("ad-users"); ub.innerHTML = ""; ub.className = "";
     us.forEach(d => {
       const u = d.data(); const r = document.createElement("div"); r.className = "list-row";
-      r.innerHTML = `${u.iconUrl ? `<img src="${esc(u.iconUrl)}">` : ""}<span>${esc(u.name || d.id)}</span><select>${Object.entries(ROLE_NAMES).map(([k, v]) => `<option value="${k}" ${u.role === k ? "selected" : ""}>${v}</option>`).join("")}</select>`;
+      r.innerHTML = `${u.iconUrl ? `<img src="${esc(u.iconUrl)}">` : ""}<span>${esc(u.name || d.id)}${u.email ? `<br><span class="hint">${esc(u.email)}</span>` : ""}</span><select>${Object.entries(ROLE_NAMES).map(([k, v]) => `<option value="${k}" ${u.role === k ? "selected" : ""}>${v}</option>`).join("")}</select>`;
       r.querySelector("select").onchange = async e => {
         try { await fb.updateDoc(d.ref, { role: e.target.value }); toast("Rollen er endret"); } catch (er) { toast("Feil: " + (er.code || er.message)); }
       };
@@ -926,6 +1160,208 @@ async function renderAdmin() {
 }
 $("me-btn").onclick = openProfile;
 
+// ================= Admin: rydding i arkivet =================
+// Ett spor om gangen. B = behold, U = usikker, A = arkiver (skjules, slettes ikke), → / ← = neste / forrige, mellomrom = spill/pause
+const AR = { list: [], i: 0, area: "view", status: "todo", owner: "", bounds: null, map: null, marker: null, cats: new Set(), access: "map", users: {}, claims: {} };
+const arStatus = id => archiveMeta[id]?.status || "todo";
+const STATUS_NAMES = { todo: "Ubehandlet", unsure: "Usikker", keep: "Beholdt", archived: "Arkivert", all: "Alle" };
+function ownerLabel(lu) {
+  const o = legacyOwners[lu], u = AR.users[lu];
+  return o?.name || u?.displayName || u?.name || u?.username || (u?.email ? u.email.split("@")[0] : "") || lu.slice(0, 6) + "…";
+}
+async function openArchive({ only = null } = {}) {
+  if (!isAdmin()) return;
+  AR.bounds = map.getBounds();
+  // Hjelp til å kjenne igjen eierne: brukerne fra den gamle appen og e-poster admin har koblet
+  try { (await fb.getDocs(fb.collection(fb.db, "users"))).forEach(d => AR.users[d.id] = d.data()); } catch (e) { console.info("Gamle brukere ikke tilgjengelige", e.code); }
+  try { AR.claims = {}; (await fb.getDocs(fb.collection(fb.db, "sp_owner_claims"))).forEach(d => (d.data().legacyUids || []).forEach(lu => AR.claims[lu] = d.id)); } catch (e) { console.info(e.code); }
+  if (only) { AR.area = "all"; AR.status = "all"; AR.owner = ""; }
+  arFilter(only);
+  $("ar-bg").classList.add("show");
+}
+function arFilter(only = null) {
+  const items = rawLegacy.filter(p => p.lat != null && p.audioUrl);
+  AR.list = items.filter(p => {
+    if (only) return p.id === only;
+    if (AR.status !== "all" && arStatus(p.id) !== AR.status) return false;
+    if (AR.owner && (archiveMeta[p.id]?.owner || p.creator) !== AR.owner) return false;
+    if (AR.area === "view" && AR.bounds && !AR.bounds.contains([p.lat, p.lng])) return false;
+    return true;
+  }).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+  AR.i = 0; arRender();
+}
+function arRender() {
+  const box = $("ar");
+  const total = rawLegacy.filter(p => p.lat != null && p.audioUrl);
+  const counts = {}; total.forEach(p => { const k = arStatus(p.id); counts[k] = (counts[k] || 0) + 1; });
+  const owners = {}; total.forEach(p => { const k = archiveMeta[p.id]?.owner || p.creator; owners[k] = (owners[k] || 0) + 1; });
+  const ownerOpts = Object.entries(owners).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<option value="${esc(k)}" ${AR.owner === k ? "selected" : ""}>${esc(ownerLabel(k))} (${n})</option>`).join("");
+  const p = AR.list[AR.i];
+  box.innerHTML = `<div class="row"><h2 style="flex:1">Rydd arkivet</h2><button id="ar-owners">👥 Eiere</button><button id="ar-x">✕</button></div>
+    <div class="hint">Ubehandlet ${counts.todo || 0} · Usikker ${counts.unsure || 0} · Beholdt ${counts.keep || 0} · Arkivert ${counts.archived || 0}</div>
+    <div class="row" style="margin-top:.5rem; flex-wrap:wrap">
+      <select id="ar-area" style="flex:1"><option value="view" ${AR.area === "view" ? "selected" : ""}>Kartutsnittet</option><option value="all" ${AR.area === "all" ? "selected" : ""}>Hele arkivet</option></select>
+      <select id="ar-status" style="flex:1">${Object.entries(STATUS_NAMES).map(([k, v]) => `<option value="${k}" ${AR.status === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <select id="ar-owner" style="flex:1"><option value="">Alle bidragsytere</option>${ownerOpts}</select>
+    </div>
+    <div id="ar-item"></div>`;
+  $("ar-x").onclick = arClose;
+  $("ar-owners").onclick = arOwners;
+  $("ar-area").onchange = e => { AR.area = e.target.value; arFilter(); };
+  $("ar-status").onchange = e => { AR.status = e.target.value; arFilter(); };
+  $("ar-owner").onchange = e => { AR.owner = e.target.value; arFilter(); };
+  const it = $("ar-item");
+  if (!p) { it.innerHTML = `<p class="hint" style="margin-top:1rem">Ingen spor med dette utvalget. Flytt kartet eller velg «Hele arkivet».</p>`; return; }
+  const m = archiveMeta[p.id] || {};
+  const tags = m.tags || p.tags || [];
+  AR.cats = new Set(tags); AR.access = m.access || "map";
+  const allCats = [...new Set([...CATEGORIES, ...tags])];
+  const curOwner = m.owner || p.creator;
+  it.innerHTML = `<div class="hint" style="margin-top:.7rem">Spor ${AR.i + 1} av ${AR.list.length} · ${STATUS_NAMES[arStatus(p.id)]} · ${p.createdAt ? new Date(p.createdAt).toLocaleDateString("nb-NO") : ""}</div>
+    ${p.imageUrl ? `<img src="${esc(p.imageUrl)}" style="width:100%; max-height:200px; object-fit:cover; border-radius:12px; margin-top:.4rem">` : ""}
+    <audio id="ar-audio" controls autoplay src="${esc(p.audioUrl)}" style="width:100%; margin-top:.4rem"></audio>
+    <label>Tittel</label><input type="text" id="ar-title" value="${esc(m.title ?? p.name ?? "")}">
+    <label>Beskrivelse</label><input type="text" id="ar-desc" value="${esc(m.desc ?? p.description ?? "")}">
+    <label>Kategorier</label><div class="chips" id="ar-cats">${allCats.map(c => `<button type="button" data-c="${esc(c)}" class="${AR.cats.has(c) ? "on" : ""}">${esc(c)}</button>`).join("")}</div>
+    <div class="row" style="flex-wrap:wrap">
+      <div style="flex:1; min-width:180px"><label>Eier</label><select id="ar-own">${Object.keys(owners).map(k => `<option value="${esc(k)}" ${k === curOwner ? "selected" : ""}>${esc(ownerLabel(k))}</option>`).join("")}</select></div>
+      <div style="flex:1; min-width:180px"><label>Radius: <b id="ar-rv">${clampRadius(m.radius)} m</b></label><input type="range" id="ar-radius" min="10" max="500" step="5" value="${clampRadius(m.radius)}" style="width:100%"></div>
+    </div>
+    <label>Hvordan finnes sporet?</label>
+    <div class="seg" id="ar-access"><button data-a="map">Vises i kartet</button><button data-a="locked">Må være der</button><button data-a="hidden">Skjult skattejakt</button></div>
+    <label style="display:flex; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox" id="ar-ver" ${m.label === "verified" ? "checked" : ""}> Verifisert</label>
+    <div id="ar-map"></div>
+    <div class="ar-btns">
+      <button id="ar-prev" title="Forrige (←)">←</button>
+      <button id="ar-keep" class="ar-keep">Behold <span class="kbd">B</span></button>
+      <button id="ar-unsure" class="ar-unsure">Usikker <span class="kbd">U</span></button>
+      <button id="ar-arch" class="ar-arch">Arkiver <span class="kbd">A</span></button>
+      <button id="ar-next" title="Hopp over (→)">→</button>
+    </div>
+    <div class="err" id="ar-err"></div>`;
+  seg("ar-access", "a", AR.access);
+  $("ar-access").onclick = e => { if (e.target.dataset.a) { AR.access = e.target.dataset.a; seg("ar-access", "a", AR.access); } };
+  $("ar-cats").onclick = e => { const c = e.target.dataset.c; if (!c) return; AR.cats.has(c) ? AR.cats.delete(c) : AR.cats.add(c); e.target.classList.toggle("on"); };
+  $("ar-radius").oninput = e => $("ar-rv").textContent = e.target.value + " m";
+  $("ar-keep").onclick = () => arDecide("keep");
+  $("ar-unsure").onclick = () => arDecide("unsure");
+  $("ar-arch").onclick = () => arDecide("archived");
+  $("ar-prev").onclick = () => { if (AR.i > 0) { AR.i--; arRender(); } };
+  $("ar-next").onclick = () => { if (AR.i < AR.list.length - 1) { AR.i++; arRender(); } };
+  // Lite kart over hvor sporet ligger
+  setTimeout(() => {
+    if (AR.map) { AR.map.remove(); AR.map = null; }
+    AR.map = L.map("ar-map", { zoomControl: false, attributionControl: false }).setView([p.lat, p.lng], 15);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(AR.map);
+    L.circle([p.lat, p.lng], { radius: clampRadius(m.radius), color: "#e4572e" }).addTo(AR.map);
+  }, 0);
+}
+async function arDecide(status) {
+  const p = AR.list[AR.i]; if (!p) return;
+  const data = {
+    status, title: $("ar-title").value.trim(), desc: $("ar-desc").value.trim(), tags: [...AR.cats],
+    owner: $("ar-own").value, label: $("ar-ver").checked ? "verified" : "local",
+    radius: clampRadius(+$("ar-radius").value), access: AR.access, by: user.uid, at: Date.now()
+  };
+  try {
+    await fb.setDoc(fb.doc(fb.db, "sp_archive", p.id), data);
+    archiveMeta[p.id] = data;
+  } catch (e) { $("ar-err").textContent = "Kunne ikke lagre: " + (e.code || e.message) + ". Er de nye sikkerhetsreglene publisert?"; return; }
+  // I «Ubehandlet»-visningen forsvinner sporet fra lista; ellers går vi videre
+  if (AR.status !== "all" && AR.status !== status) AR.list.splice(AR.i, 1); else AR.i++;
+  if (AR.i >= AR.list.length) AR.i = Math.max(0, AR.list.length - 1);
+  arRender();
+}
+function arClose() {
+  $("ar-audio")?.pause();
+  $("ar-bg").classList.remove("show");
+  setTracks(rawLegacy.map(normLegacy).concat(tracks.filter(t => !t.legacy)));
+}
+// Eiere: navn som vises, om navnet skal vises (samtykke), og e-post som kobler sporene til en ny konto
+function arOwners() {
+  const total = rawLegacy.filter(p => p.lat != null && p.audioUrl);
+  const owners = {}; total.forEach(p => { const k = archiveMeta[p.id]?.owner || p.creator; owners[k] = (owners[k] || 0) + 1; });
+  const box = $("ar");
+  box.innerHTML = `<div class="row"><h2 style="flex:1">Eiere av arkivspor</h2><button id="ar-back">← Tilbake</button></div>
+    <p class="hint">Navnet vises på sporene bare når «Vis navn» er krysset av – ellers står det «SoundPin-arkivet». Spør personen før du viser navnet. Når e-posten er fylt inn, overtar personen sporene sine første gang hen logger inn med den e-posten (bekreftet).</p>
+    <div id="ar-olist"></div>`;
+  $("ar-back").onclick = arRender;
+  const list = $("ar-olist");
+  Object.entries(owners).sort((a, b) => b[1] - a[1]).forEach(([lu, n]) => {
+    const o = legacyOwners[lu] || {}, u = AR.users[lu] || {};
+    const hint = [u.displayName || u.name || u.username, u.email].filter(Boolean).join(" · ");
+    const r = document.createElement("div"); r.className = "q-item";
+    r.innerHTML = `<div class="hint">${n} spor · ${esc(lu)}${hint ? ` · gamle appen: ${esc(hint)}` : ""}${o.linkedUid ? " · <b>koblet til konto</b>" : ""}</div>
+      <div class="row" style="flex-wrap:wrap; margin-top:.3rem">
+        <input type="text" placeholder="Navn" value="${esc(o.name || u.displayName || u.name || "")}" style="flex:1; min-width:140px">
+        <input type="text" placeholder="E-post (valgfritt)" inputmode="email" value="${esc(AR.claims[lu] || u.email || "")}" style="flex:1; min-width:160px">
+        <label style="display:flex; gap:.3rem; align-items:center; margin:0; color:var(--ink)"><input type="checkbox" ${o.showName ? "checked" : ""}> Vis navn</label>
+        <button>Lagre</button>
+      </div>`;
+    const [name, email] = r.querySelectorAll("input[type=text]"), show = r.querySelector("input[type=checkbox]");
+    r.querySelector("button").onclick = async () => {
+      try {
+        const doc = { name: name.value.trim(), showName: show.checked, linkedUid: o.linkedUid || null };
+        await fb.setDoc(fb.doc(fb.db, "sp_legacy_owners", lu), doc);
+        legacyOwners[lu] = doc;
+        const em = email.value.trim().toLowerCase(), old = AR.claims[lu];
+        if (old && old !== em) await fb.setDoc(fb.doc(fb.db, "sp_owner_claims", old), { legacyUids: fb.arrayRemove(lu) }, { merge: true });
+        if (em && em !== old) await fb.setDoc(fb.doc(fb.db, "sp_owner_claims", em), { legacyUids: fb.arrayUnion(lu) }, { merge: true });
+        if (em) AR.claims[lu] = em; else delete AR.claims[lu];
+        toast("Lagret");
+      } catch (e) { toast("Kunne ikke lagre: " + (e.code || e.message), 6000); }
+    };
+    list.appendChild(r);
+  });
+}
+document.addEventListener("keydown", e => {
+  if (!$("ar-bg").classList.contains("show") || !$("ar-keep")) return;
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName) && document.activeElement.type !== "range" && document.activeElement.type !== "checkbox") return;
+  const k = e.key.toLowerCase();
+  if (k === "b") arDecide("keep"); else if (k === "u") arDecide("unsure"); else if (k === "a") arDecide("archived");
+  else if (e.key === "ArrowRight") $("ar-next").click(); else if (e.key === "ArrowLeft") $("ar-prev").click();
+  else if (e.key === " ") { const a = $("ar-audio"); a.paused ? a.play() : a.pause(); }
+  else return;
+  e.preventDefault();
+});
+
+// ================= Admin: godkjenningskø =================
+function openQueue() {
+  if (!isVerifier()) return;
+  const box = $("q");
+  const list = tracks.filter(t => t.review === "pending").sort((a, b) => a.createdAt - b.createdAt);
+  box.innerHTML = `<div class="row"><h2 style="flex:1">Godkjenningskø (${list.length})</h2><button id="q-x">✕</button></div>
+    <p class="hint">Spor fra nye brukere som skal deles med alle. Til de er godkjent, kan bare vennene til den som laget dem høre dem.</p>
+    <div id="q-list">${list.length ? "" : '<p class="hint">Ingen spor venter.</p>'}</div>`;
+  $("q-x").onclick = () => { box.querySelectorAll("audio").forEach(a => a.pause()); $("q-bg").classList.remove("show"); };
+  list.forEach(t => {
+    const r = document.createElement("div"); r.className = "q-item";
+    r.innerHTML = `${t.imageUrl ? `<img src="${esc(t.imageUrl)}">` : ""}
+      <div style="margin-top:.3rem"><b>${esc(t.title || "Uten navn")}</b> <span class="hint">av ${esc(t.creatorName || "ukjent")} · ${new Date(t.createdAt).toLocaleDateString("nb-NO")} · ${t.tags.map(esc).join(", ")}</span></div>
+      ${t.desc ? `<div class="hint">${esc(t.desc)}</div>` : ""}
+      ${t.kind === "text" ? `<div class="tts" style="margin-top:.4rem">${esc(t.text || "")}</div>` : `<audio controls preload="none" src="${esc(t.audioUrl)}" style="width:100%; margin-top:.4rem"></audio>`}
+      <label style="display:flex; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox"> Merk som verifisert</label>
+      <div class="row" style="margin-top:.4rem"><button>🧭 Vis</button><button class="ar-arch" style="flex:1">Avvis</button><button class="ar-keep" style="flex:1">Godkjenn</button></div>`;
+    const [show, rej, ok] = r.querySelectorAll("button"), ver = r.querySelector("input[type=checkbox]");
+    show.onclick = () => { $("q-bg").classList.remove("show"); map.setView([t.lat, t.lng], 16); play(t); };
+    ok.onclick = () => review(t, { visibility: "public", review: "approved", label: ver.checked ? "verified" : t.label || "local" }, r);
+    rej.onclick = () => {
+      const note = prompt("Begrunnelse (vises for den som laget sporet):", "");
+      if (note == null) return;
+      review(t, { review: "rejected", reviewNote: note.slice(0, 300) }, r);
+    };
+    $("q-list").appendChild(r);
+  });
+  $("q-bg").classList.add("show");
+}
+async function review(t, upd, row) {
+  try {
+    await fb.updateDoc(fb.doc(fb.db, "sp_tracks", t.id), { ...upd, reviewedBy: user.uid, reviewedAt: Date.now() });
+    Object.assign(t, upd); row?.remove(); render();
+    toast(upd.review === "approved" ? "Godkjent – alle kan nå høre sporet." : upd.review === "rejected" ? "Avvist." : "Lagret.");
+  } catch (e) { toast("Kunne ikke lagre: " + (e.code || e.message) + ". Er de nye sikkerhetsreglene publisert?", 6000); }
+}
+
 // ================= Moderering =================
 async function report(t) {
   if (!fb || !user) { toast("Rapportering krever at innlogging er satt opp."); return; }
@@ -945,7 +1381,8 @@ async function removeTrack(t) {
 }
 
 // ================= Nytt spor =================
-const R = { kind: "audio", pos: "me", vis: "friends", blob: null, mime: "", duration: 0, replyTo: null, recorder: null, timer: null };
+const R = { kind: "audio", pos: "me", vis: "friends", access: "map", cats: new Set(), blob: null, mime: "", duration: 0, replyTo: null, recorder: null, timer: null };
+const maxRadius = () => canPublic() ? MAX_RADIUS : MAX_RADIUS_USER;
 const maxSeconds = () => canPublic() ? MAX_SECONDS_AUTH : MAX_SECONDS_USER;
 function seg(id, key, val) { $(id).querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset[key] === val)); }
 function fmtTime(s) { s = Math.floor(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
@@ -957,23 +1394,24 @@ function canRecord() {
 }
 function openRecorder({ replyTo = null, recorded = null } = {}) {
   if (!canRecord()) return;
-  Object.assign(R, { kind: "audio", blob: null, mime: "", duration: 0, replyTo, pos: recorded ? "map" : (me ? "me" : "map"), vis: canPublic() ? "public" : "friends" });
+  Object.assign(R, { kind: "audio", blob: null, mime: "", duration: 0, replyTo, pos: recorded ? "map" : (me ? "me" : "map"), vis: canPublic() ? "public" : "friends", access: "map", cats: new Set() });
   if (!recorded) R.crossPos = null;
   $("rec-title").textContent = replyTo ? `Svar på «${replyTo.title || "spor"}»` : "Nytt lydspor";
   ["rec-name", "rec-desc", "rec-tags", "rec-textarea", "rec-seq-name"].forEach(id => $(id).value = "");
   if (replyTo) $("rec-name").value = "Svar: " + (replyTo.title || "");
   $("rec-img").value = ""; $("rec-img-prev").style.display = "none"; $("rec-img-txt").style.display = ""; $("rec-more").open = false;
-  $("rec-hidden").checked = false; $("rec-rights").checked = false;
+  $("rec-rights").checked = false; $("rec-tags").style.display = "none";
+  $("rec-radius").max = maxRadius(); $("rec-radius").value = DEFAULT_RADIUS;
   $("rec-preview").style.display = "none"; $("rec-time").textContent = "0:00"; $("rec-err").textContent = "";
   $("rec-limit").textContent = `Maks ${fmtTime(maxSeconds())}. Støy dempes automatisk av nettleseren.`;
-  $("rec-pos").parentElement.querySelectorAll("#rec-pos, #rec-pos-hint").forEach(el => el.style.display = replyTo ? "none" : "");
-  $("rec-hidden").parentElement.style.display = replyTo ? "none" : "";
-  $("rec-seq").style.display = replyTo ? "none" : "";
+  $("rec-adv-place").style.display = replyTo ? "none" : "";
+  $("rec-cat-box").style.display = replyTo ? "none" : "";
+  renderCats();
   // Sekvenser jeg har laget
   const mine = {}; tracks.filter(t => t.creator === user.uid && t.seqId).forEach(t => { mine[t.seqId] = { name: t.seqName, n: Math.max(mine[t.seqId]?.n || 0, t.seqNo) }; });
   $("rec-seq").innerHTML = `<option value="">Ingen sekvens</option>${Object.entries(mine).map(([id, s]) => `<option value="${id}">${esc(s.name)} (neste blir #${s.n + 1})</option>`).join("")}<option value="new">+ Ny sekvens …</option>`;
   $("rec-seq-name").style.display = "none";
-  setKind("audio"); setPos(R.pos); setVis(R.vis);
+  setKind("audio"); setPos(R.pos); setVis(R.vis); setAccess("map"); setRadius(DEFAULT_RADIUS);
   if (recorded) {
     Object.assign(R, recorded);
     $("rec-preview").src = URL.createObjectURL(R.blob); $("rec-preview").style.display = "block";
@@ -995,10 +1433,38 @@ function setPos(p) {
   $("rec-pos-hint").textContent = p === "map" ? `Der krysset stod (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}). Flytt kartet og hold krysset inne for å velge et annet sted.` : `Der du står nå (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}).`;
 }
 function setVis(v) {
-  if (v === "public" && !canPublic()) { toast("Du kan dele med alle når du har fått autorisert status."); v = "friends"; }
   R.vis = v; seg("rec-vis", "v", v);
-  $("rec-vis").querySelector('[data-v="public"]').disabled = !canPublic();
-  $("rec-vis-hint").textContent = v === "private" ? "Bare du kan høre sporet." : v === "friends" ? `Dine ${members.length} venner kan høre sporet.` : "Alle kan høre sporet.";
+  $("rec-vis-hint").textContent = v === "private" ? "Bare du kan høre sporet."
+    : v === "friends" ? `Dine ${members.length} venner kan høre sporet.`
+    : canPublic() ? "Alle kan høre sporet." : `Sporet sendes til godkjenning før alle kan høre det. Til da kan dine ${members.length} venner høre det.`;
+}
+function setAccess(a) {
+  R.access = a; seg("rec-access", "a", a);
+  $("rec-access-hint").textContent = a === "map" ? "Sporet vises i kartet og kan høres hvor som helst."
+    : a === "locked" ? "Sporet vises med hengelås. Man må være innenfor radiusen én gang for å låse det opp – deretter kan det høres hvor som helst."
+    : "Sporet vises ikke i kartet. Det dukker opp og låses opp når noen er innenfor radiusen.";
+  updateSummary();
+}
+function setRadius(r) {
+  r = Math.min(maxRadius(), clampRadius(r)); $("rec-radius").value = r; $("rec-radius-val").textContent = r + " m";
+  $("rec-radius-hint").textContent = canPublic() ? "Hvor nær man må være før sporet spilles av." : `Hvor nær man må være før sporet spilles av. Over ${MAX_RADIUS_USER} m krever autorisert status.`;
+  updateSummary();
+}
+function updateSummary() {
+  const seqTxt = $("rec-seq").value === "new" ? "ny sekvens" : $("rec-seq").value ? "i sekvens" : "ingen sekvens";
+  $("rec-sum").textContent = R.replyTo ? "" : ` · Radius ${$("rec-radius").value} m · ${ACCESS_NAMES[R.access]} · ${seqTxt}`;
+}
+function renderCats() {
+  const box = $("rec-cats"); box.innerHTML = "";
+  [...CATEGORIES, "+ Egen"].forEach(c => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = c;
+    b.className = R.cats.has(c) ? "on" : "";
+    b.onclick = () => {
+      if (c === "+ Egen") { const i = $("rec-tags"); i.style.display = i.style.display === "none" ? "" : "none"; if (i.style.display === "") i.focus(); return; }
+      R.cats.has(c) ? R.cats.delete(c) : R.cats.add(c); b.classList.toggle("on");
+    };
+    box.appendChild(b);
+  });
 }
 $("rec-switch").onclick = e => { e.preventDefault(); setKind(R.kind === "audio" ? "text" : "audio"); };
 $("rec-x").onclick = () => $("rec-cancel").click();
@@ -1008,7 +1474,9 @@ $("rec-img").onchange = () => {
 };
 $("rec-pos").onclick = e => e.target.dataset.p && setPos(e.target.dataset.p);
 $("rec-vis").onclick = e => e.target.dataset.v && setVis(e.target.dataset.v);
-$("rec-seq").onchange = () => $("rec-seq-name").style.display = $("rec-seq").value === "new" ? "" : "none";
+$("rec-seq").onchange = () => { $("rec-seq-name").style.display = $("rec-seq").value === "new" ? "" : "none"; updateSummary(); };
+$("rec-access").onclick = e => e.target.dataset.a && setAccess(e.target.dataset.a);
+$("rec-radius").oninput = () => setRadius(+$("rec-radius").value);
 $("rec-textarea").oninput = () => {
   const n = ($("rec-textarea").value.match(/\S+/g) || []).length;
   const max = Math.round(WORDS_PER_90S * maxSeconds() / 90);
@@ -1102,13 +1570,20 @@ $("rec-save").onclick = async () => {
       imageUrl = await fb.getDownloadURL(r);
     }
     const data = {
-      title, desc: $("rec-desc").value.trim(), tags: $("rec-tags").value.split(",").map(s => s.trim().toLowerCase()).filter(Boolean),
+      title, desc: $("rec-desc").value.trim(),
+      tags: [...new Set([...R.cats, ...$("rec-tags").value.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)])],
       lat: pos.lat, lng: pos.lng, kind: R.kind, audioUrl, imageUrl, text: text || null,
       duration: R.kind === "audio" ? Math.round(R.duration) : Math.round((text.match(/\S+/g) || []).length / WORDS_PER_90S * 90),
       creator: user.uid, creatorName: profile?.name || user.displayName || "", creatorIcon: profile?.iconUrl || null,
-      visibility: R.vis, allowed: R.vis === "friends" ? members.map(m => m.uid) : [],
-      hidden: !R.replyTo && $("rec-hidden").checked, seqId, seqName, seqNo,
-      replyTo: R.replyTo ? R.replyTo.id : null, label: "local", createdAt: Date.now()
+      // «Alle» fra en vanlig bruker: deles med venner til en admin har godkjent
+      visibility: R.vis === "public" && !canPublic() ? "friends" : R.vis,
+      allowed: R.vis === "friends" || (R.vis === "public" && !canPublic()) ? members.map(m => m.uid) : [],
+      review: R.vis === "public" && !canPublic() ? "pending" : null,
+      radius: R.replyTo ? null : Math.min(maxRadius(), clampRadius(+$("rec-radius").value)),
+      access: R.replyTo ? "map" : R.access, hidden: !R.replyTo && R.access === "hidden",
+      seqId, seqName, seqNo,
+      replyTo: R.replyTo ? R.replyTo.id : null, wasHere: R.replyTo && unlocks[R.replyTo.id] ? unlocks[R.replyTo.id] : null,
+      label: "local", createdAt: Date.now()
     };
     await fb.setDoc(fb.doc(fb.db, "sp_tracks", id), data);
     if (R.replyTo) await bump(R.replyTo.id, "r", { boost: Date.now() + REPLY_BOOST_DAYS * DAY });
@@ -1116,7 +1591,7 @@ $("rec-save").onclick = async () => {
     // Vis det nye sporet litt over krysset, så det ikke skjules
     if (!R.replyTo) { map.setView([data.lat, data.lng], Math.max(map.getZoom(), 16), { animate: false }); map.panBy([0, 90], { animate: false }); }
     $("rec-bg").classList.remove("show");
-    toast(R.replyTo ? "Svaret er lagret." : "Sporet er lagret.");
+    toast(R.replyTo ? "Svaret er lagret." : data.review === "pending" ? "Sporet er lagret og sendt til godkjenning. Til da kan vennene dine høre det." : "Sporet er lagret.", 4500);
     if (R.replyTo) play(R.replyTo);
   } catch (e) { err.textContent = "Kunne ikke lagre: " + (e.code || e.message); }
   btn.disabled = false; btn.textContent = "Lagre";

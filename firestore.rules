@@ -1,5 +1,5 @@
 rules_version = '2';
-// SoundPin – Firestore-regler (versjon 2)
+// SoundPin – Firestore-regler (versjon 3)
 // Limes inn i Firebase-konsollen: Build → Firestore Database → Rules → Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -8,9 +8,8 @@ service cloud.firestore {
     function realUser() {
       return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
-    function isAdmin() {
-      return realUser() && request.auth.token.email == 'geiringelerang@gmail.com'
-        && request.auth.token.email_verified == true;
+    function verifiedEmail() {
+      return realUser() && request.auth.token.email_verified == true;
     }
     function profile() {
       return get(/databases/$(database)/documents/sp_users/$(request.auth.uid)).data;
@@ -18,20 +17,56 @@ service cloud.firestore {
     function hasProfile() {
       return exists(/databases/$(database)/documents/sp_users/$(request.auth.uid));
     }
+    // Administratorer: e-postene under (bekreftet), eller rollen «admin» gitt av en administrator.
+    // Samme liste står i firebase-config.js (ADMIN_EMAILS).
+    function isAdmin() {
+      return (verifiedEmail() && request.auth.token.email.lower() in ['geiringelerang@gmail.com', 'gil@scanliftmaskin.no'])
+        || (realUser() && hasProfile() && profile().role == 'admin');
+    }
     function canPublic() {
       return isAdmin() || (realUser() && hasProfile() && profile().role in ['authorized', 'verifier', 'admin']);
     }
     function isVerifier() {
       return isAdmin() || (realUser() && hasProfile() && profile().role in ['verifier', 'admin']);
     }
+    // Radius: 10–500 m, over 200 m bare for autoriserte
+    function okRadius(d) {
+      return !('radius' in d) || d.radius == null
+        || (d.radius is number && d.radius >= 10 && d.radius <= 500 && (d.radius <= 200 || canPublic()));
+    }
+    function okAccess(d) {
+      return !('access' in d) || d.access in ['map', 'locked', 'hidden'];
+    }
 
     // ---- Gamle data fra iOS-appen ----
     match /pins/{id} {
       allow read: if true;
-      allow write: if realUser();
+      allow write: if isAdmin();
     }
     match /users/{uid} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ---- Rydding i arkivet (status, tittel, kategori, eier, radius …) ----
+    match /sp_archive/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    // ---- Eiere av arkivspor: navn som vises og koblingen til en ny konto ----
+    match /sp_legacy_owners/{lu} {
+      allow read: if true;
+      allow write: if isAdmin();
+      // Den som har e-posten admin har koblet til eieren, kan sette linkedUid til seg selv
+      allow update: if verifiedEmail()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedUid'])
+        && request.resource.data.linkedUid == request.auth.uid
+        && lu in get(/databases/$(database)/documents/sp_owner_claims/$(request.auth.token.email.lower())).data.legacyUids;
+    }
+    // E-post → arkiveiere. Holdes privat: bare admin og eieren av e-posten kan lese.
+    match /sp_owner_claims/{email} {
+      allow read: if isAdmin() || (verifiedEmail() && request.auth.token.email.lower() == email);
+      allow write: if isAdmin();
     }
 
     // ---- Brukerprofiler ----
@@ -50,25 +85,37 @@ service cloud.firestore {
           && request.resource.data.k == get(/databases/$(database)/documents/sp_users/$(uid)).data.inviteCode;
         allow delete: if signedIn() && (request.auth.uid == uid || request.auth.uid == m);
       }
+      // Opplåste stedslåste spor (også for anonyme brukere)
+      match /unlocks/{t} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
     }
 
     // ---- Lydspor ----
     match /sp_tracks/{id} {
       allow read: if resource.data.visibility == 'public'
         || (signedIn() && (resource.data.creator == request.auth.uid
-                           || request.auth.uid in resource.data.allowed));
+                           || request.auth.uid in resource.data.allowed))
+        || isVerifier();
       allow create: if realUser()
         && request.resource.data.creator == request.auth.uid
         && request.resource.data.visibility in ['private', 'friends', 'public']
         && (request.resource.data.visibility != 'public' || canPublic())
-        && request.resource.data.label == 'local';
+        && (!('review' in request.resource.data) || request.resource.data.review in [null, 'pending'])
+        && request.resource.data.label == 'local'
+        && okRadius(request.resource.data) && okAccess(request.resource.data);
       allow update: if (realUser() && resource.data.creator == request.auth.uid
                         && request.resource.data.creator == resource.data.creator
                         && request.resource.data.label == resource.data.label
-                        && (request.resource.data.visibility != 'public' || canPublic()))
+                        && request.resource.data.get('review', null) == resource.data.get('review', null)
+                        && (request.resource.data.visibility != 'public' || canPublic())
+                        && okRadius(request.resource.data) && okAccess(request.resource.data))
+                    // Verifikatorer og admin: godkjenne, avvise, verifisere og trekke tilbake
                     || (isVerifier()
-                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['label'])
-                        && request.resource.data.label in ['local', 'verified']);
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                             .hasOnly(['label', 'visibility', 'review', 'reviewNote', 'reviewedBy', 'reviewedAt'])
+                        && request.resource.data.label in ['local', 'verified']
+                        && request.resource.data.visibility in ['private', 'friends', 'public']);
       allow delete: if (realUser() && resource.data.creator == request.auth.uid) || isAdmin();
     }
 
@@ -76,7 +123,7 @@ service cloud.firestore {
     match /sp_stats/{id} {
       allow read: if true;
       allow write: if signedIn()
-        && request.resource.data.keys().hasOnly(['s', 'c', 'r', 't', 'boost']);
+        && request.resource.data.keys().hasOnly(['s', 'c', 'r', 'u', 't', 'boost']);
     }
 
     // ---- Rapporter ----

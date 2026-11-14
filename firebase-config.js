@@ -12,5 +12,6 @@ export const firebaseConfig = {
   measurementId: "G-5SEC7THLPR"
 };
 
-// Administrator: kan gi roller, se rapporter og slette spor.
-export const ADMIN_EMAIL = "geiringelerang@gmail.com";
+// Administratorer: kan gi roller, godkjenne innhold, rydde arkivet og slette spor.
+// Samme liste står i firestore.rules (funksjonen isAdmin) – endres begge steder.
+export const ADMIN_EMAILS = ["geiringelerang@gmail.com", "gil@scanliftmaskin.no"];
