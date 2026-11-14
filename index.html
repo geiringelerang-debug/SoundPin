@@ -545,9 +545,25 @@ function onStarted(t) {
 function onCompleted(t) {
   heard.add(t.id); store.set("sp-heard", [...heard]);
   bump(t.id, "c");
+  // I gå- og bilmodus lukkes sporet når det er ferdig, så neste kan starte
+  if (walking && current === t) closePlayer();
   render();
   if (walking) setTimeout(checkNearby, 800);
 }
+// Lukker spilleren og setter bilskjermen tilbake til start
+function closePlayer() {
+  stopAll();
+  $("player").classList.remove("show"); document.body.classList.remove("has-player");
+  current = null;
+  $("car-now").textContent = "Kjør trygt – spor spilles av automatisk";
+  $("car-desc").textContent = "";
+  const img = $("car-img"); img.removeAttribute("src"); img.classList.remove("has");
+  $("zoom").classList.remove("show");
+  if (carMode) $("car-next").textContent = nextAheadText();
+}
+// Lyd som har stått stille lenge (f.eks. dårlig dekning) skal ikke blokkere nye spor
+let lastProgress = 0;
+const STALL_MS = 15000;
 function speak(t) {
   if (!window.speechSynthesis) { toast("Nettleseren kan ikke lese opp tekst."); return; }
   speechSynthesis.cancel();
@@ -586,6 +602,7 @@ function play(t) {
   } else {
     $("p-tts").style.display = "none"; audio.style.display = "block";
     audio.src = t.audioUrl;
+    lastProgress = Date.now();
     audio.play().catch(() => {});
   }
   renderActions(t); renderReplies(t);
@@ -630,7 +647,10 @@ $("tts-btn").onclick = () => {
 };
 audio.addEventListener("play", () => current && onStarted(current));
 audio.addEventListener("ended", () => current && onCompleted(current));
-$("close").onclick = () => { stopAll(); $("player").classList.remove("show"); document.body.classList.remove("has-player"); current = null; };
+audio.addEventListener("timeupdate", () => { lastProgress = Date.now(); });
+// Lyden kunne ikke lastes: slipp sporet uten å telle det som hørt
+audio.addEventListener("error", () => { if (current && current.kind !== "text" && audio.getAttribute("src") && walking) closePlayer(); });
+$("close").onclick = closePlayer;
 
 function renderActions(t) {
   const box = $("p-actions"); box.innerHTML = "";
@@ -714,6 +734,8 @@ function checkNearby() {
     if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
     renderTags(); render();
   }
+  const stalled = current && !speaking && !audio.paused && !audio.ended && Date.now() - lastProgress > STALL_MS;
+  if (stalled) { console.warn("Sporet sto stille – går videre", current.id); closePlayer(); }
   const busy = current && ((!audio.paused && !audio.ended) || speaking);
   const pool = [...new Set([...visibleTracks(), ...opened])];
   const cand = pool.map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d) || (opened.includes(x.t) && !isOwn(x.t))).sort((a, b) => a.d - b.d);
