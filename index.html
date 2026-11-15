@@ -36,6 +36,12 @@
   #tags::-webkit-scrollbar { display: none; }
   #tags button { font-size: .8rem; padding: .3rem .7rem; }
   #status { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+  #rec-filter { font: inherit; font-size: .8rem; border: 0; border-radius: 999px; padding: .3rem .6rem; background: #eee; max-width: 55vw; margin-top: .4rem; }
+  #rec-filter.on { background: var(--accent); color: #fff; }
+  .pin.followed { box-shadow: 0 0 0 3px #f5b301, 0 1px 4px #0005; }
+  #lost-map { height: 240px; border-radius: 12px; margin-top: .5rem; }
+  .bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin-top: .5rem; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; }
   #me-btn img { width: 22px; height: 22px; border-radius: 50%; vertical-align: middle; object-fit: cover; }
   #me-btn { padding: .4rem .6rem; }
 
@@ -195,6 +201,7 @@
     <button id="me-btn" title="Profil og innlogging">👤</button>
   </div>
   <div id="tags"></div>
+  <select id="rec-filter" title="Vis bare spor fra én innspiller" style="display:none"></select>
   <div id="status">Laster …</div>
 </header>
 
@@ -316,6 +323,10 @@
 <div class="sheet-bg" id="ar-bg"><div class="sheet admin-sheet" id="ar"></div></div>
 <!-- Admin: godkjenningskø -->
 <div class="sheet-bg" id="q-bg"><div class="sheet admin-sheet" id="q"></div></div>
+<!-- Admin: tapte arkivspor -->
+<div class="sheet-bg" id="lost-bg"><div class="sheet admin-sheet" id="lost"></div></div>
+<!-- Admin: lydstyrke -->
+<div class="sheet-bg" id="loud-bg"><div class="sheet admin-sheet" id="loud"></div></div>
 
 <!-- Profil -->
 <div class="sheet-bg" id="prof-bg"><div class="sheet" id="prof"></div></div>
@@ -351,6 +362,10 @@ const HIDDEN_TAGS = ["test", "personal messsage", "lifelog", "hytte", "eiendom",
 const CATEGORIES = ["historie", "lokalhistorie", "natur", "steder", "stedsnavn", "krigen", "dialekt", "familie", "minner", "arkeologi", "kultur", "humor", "quiz"];
 const ACCESS_NAMES = { map: "Vises i kartet", locked: "Vises, men må være der", hidden: "Skjult skattejakt" };
 const DAY = 864e5;
+// Jevn lydstyrke: hvert spor måles én gang (ca. LUFS), og nivået justeres ved avspilling
+const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
+const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
+const ARCHIVE_NAME = "SoundPin-arkivet";
 
 // ================= Tilstand =================
 const store = {
@@ -370,8 +385,13 @@ store.get("sp-revealed", []).forEach(id => unlocks[id] ||= Date.now()); store.se
 let radiusScale = store.get("sp-radius-scale", "normal");
 let armed = new Map();              // spor-id → false etter avspilling, til du har vært utenfor radius + margin
 let accuracy = null, prevMe = null;
-let archiveMeta = {};               // arkiv-id → admins rydding (status, eier, kategori …)
+let archiveMeta = {};               // arkiv-id → admins rydding (status, eier, kategori, lydstyrke, plassering av tapte spor …)
 let legacyOwners = {};              // gammel bruker-id → { name, showName, linkedUid, email }
+let lostRaw = [];                   // lydfiler i Storage som mistet sporet sitt i den gamle appen (data/lost.json)
+let follows = new Set(store.get("sp-follows", []));   // innspillere du følger (nøkkel fra recKey)
+let mutes = new Set(store.get("sp-mutes", []));       // innspillere du har dempet
+let recFilter = null;               // navn på innspilleren kartet er filtrert på
+let corsOk = false, ag = null;      // Web Audio (forsterking) virker bare når Storage-bøtta tillater CORS
 let startedThisSession = new Set();
 let activeTag = null, walking = false, heatOn = false, carMode = false, carManual = false;
 let me = null, meMarker = null, watchId = null, course = null, speed = 0, lastFix = null, fastCount = 0, slowSince = null;
@@ -462,8 +482,57 @@ function secretVisible(t) {
   }
   return false;
 }
+// ---- Innspillere: følg, demp og filter ----
+// Nøkkel for den som har spilt inn sporet: kontoen for nye spor, den gamle bruker-ID-en for arkivspor
+// Arkivspor uten samtykke til å vise navn regnes som én innspiller («SoundPin-arkivet»), så ingen kan skilles ut
+const recKey = t => t.creator ? "u:" + t.creator : t.legacy ? (t.creatorName !== ARCHIVE_NAME ? "l:" + t.legacyOwner : "archive") : null;
+const recName = t => t.creatorName || ARCHIVE_NAME;
+const isFollowed = t => follows.has(recKey(t));
+const isMuted = t => mutes.has(recKey(t)) && !isOwn(t);
+function setRecFlag(set, key, on) {
+  on ? set.add(key) : set.delete(key);
+  store.set("sp-follows", [...follows]); store.set("sp-mutes", [...mutes]);
+  if (fb && isReal()) fb.updateDoc(fb.doc(fb.db, "sp_users", user.uid), { follows: [...follows], mutes: [...mutes] }).catch(e => console.warn("Følg/demp ikke lagret", e));
+  renderRecFilter(); render();
+}
+function toggleFollow(t) {
+  const k = recKey(t); if (!k) return;
+  const on = !follows.has(k);
+  if (on) mutes.delete(k);
+  setRecFlag(follows, k, on);
+  toast(on ? `⭐ Du følger ${recName(t)}. Sporene deres spilles alltid når du passerer.` : `Du følger ikke lenger ${recName(t)}.`, 3500);
+}
+function toggleMute(t) {
+  const k = recKey(t); if (!k) return;
+  const on = !mutes.has(k);
+  if (on) follows.delete(k);
+  setRecFlag(mutes, k, on);
+  toast(on ? `🔕 ${recName(t)} er dempet. Du kan angre i profilen.` : `${recName(t)} er ikke lenger dempet.`, 3500);
+  if (on && current && recKey(current) === k) closePlayer();
+}
+// Innspillere grupperes på navnet som vises (alle anonyme arkivspor blir «SoundPin-arkivet»)
+function recorders() {
+  const groups = {};
+  tracks.filter(playable).forEach(t => { const k = recKey(t); if (!k) return; const g = groups[recName(t)] ||= { keys: new Set(), n: 0 }; g.keys.add(k); g.n++; });
+  return groups;
+}
+function renderRecFilter() {
+  const sel = $("rec-filter"), groups = recorders();
+  const names = Object.keys(groups).sort((a, b) => groups[b].n - groups[a].n);
+  if (recFilter && !groups[recFilter]) recFilter = null;
+  sel.style.display = names.length > 1 ? "" : "none";
+  sel.innerHTML = `<option value="">👤 Alle innspillere</option>` + names.map(n => {
+    const k = [...groups[n].keys];
+    const mark = k.some(x => follows.has(x)) ? "⭐ " : k.every(x => mutes.has(x)) ? "🔕 " : "";
+    return `<option value="${esc(n)}" ${recFilter === n ? "selected" : ""}>${mark}${esc(n)} (${groups[n].n})</option>`;
+  }).join("");
+  sel.classList.toggle("on", !!recFilter);
+}
+$("rec-filter").onchange = e => { recFilter = e.target.value || null; renderRecFilter(); render(); };
+
 function baseList() {
-  let list = tracks.filter(playable);
+  let list = tracks.filter(playable).filter(t => !isMuted(t));
+  if (recFilter) { const g = recorders()[recFilter]; list = list.filter(t => g && g.keys.has(recKey(t))); }
   if (activeTag === "__mine") list = list.filter(isOwn);
   else if (activeTag === "__unlocked") list = list.filter(t => unlocks[t.id] && !isOwn(t));
   else if (activeTag) list = list.filter(t => t.tags.includes(activeTag));
@@ -479,8 +548,13 @@ function relevance(t) {
 function visibleTracks() {
   let list = baseList().filter(secretVisible);
   if (walking) {
-    list = list.filter(t => !heard.has(t.id));
-    if (me) list = list.map(t => ({ t, r: relevance(t) })).sort((a, b) => b.r - a.r).slice(0, WALK_VISIBLE).map(x => x.t);
+    // Spor fra innspillere du følger er alltid med – også om du har hørt dem før – og teller ikke mot 15-grensen
+    list = list.filter(t => !heard.has(t.id) || isFollowed(t));
+    if (me) {
+      const fav = list.filter(isFollowed);
+      const rest = list.filter(t => !isFollowed(t)).map(t => ({ t, r: relevance(t) })).sort((a, b) => b.r - a.r).slice(0, WALK_VISIBLE).map(x => x.t);
+      list = [...fav, ...rest];
+    }
   }
   return list;
 }
@@ -490,7 +564,7 @@ function markerFor(t) {
   const q = quality(t);
   const size = Math.round(24 + 18 * q);
   const locked = !isUnlocked(t);
-  const cls = ["pin", t.label === "verified" ? "verified" : t.label === "ai" ? "ai" : "", heard.has(t.id) ? "heard" : "", accessOf(t) === "hidden" ? "secret" : "", locked ? "locked" : ""].join(" ");
+  const cls = ["pin", t.label === "verified" ? "verified" : t.label === "ai" ? "ai" : "", heard.has(t.id) ? "heard" : "", accessOf(t) === "hidden" ? "secret" : "", locked ? "locked" : "", isFollowed(t) ? "followed" : ""].join(" ");
   const inner = locked ? "🔒" : t.creatorIcon ? `<img src="${esc(t.creatorIcon)}" alt="">` : (t.kind === "text" ? "✍" : accessOf(t) === "hidden" ? "🗝" : "🔊");
   const icon = L.divIcon({ className: "", html: `<div class="${cls}" style="--s:${size}px; --o:${(0.55 + 0.45 * q).toFixed(2)}">${inner}</div>`, iconSize: [0, 0] });
   const m = L.marker([t.lat, t.lng], { icon, title: t.title || "" });
@@ -564,6 +638,52 @@ function closePlayer() {
 // Lyd som har stått stille lenge (f.eks. dårlig dekning) skal ikke blokkere nye spor
 let lastProgress = 0;
 const STALL_MS = 15000;
+
+// ================= Jevn lydstyrke =================
+// Hvert spor har en målt lydstyrke (t.loud, ca. LUFS). Nivået justeres mot TARGET_LOUD når sporet spilles – filene endres ikke.
+const gainDb = t => t.loud == null ? 0 : Math.max(GAIN_MIN_DB, Math.min(GAIN_MAX_DB, TARGET_LOUD - t.loud));
+// Sjekker om Storage-bøtta tillater CORS. Uten det kan Web Audio ikke lese lyden (stille på iPhone), og vi kan bare dempe, ikke forsterke.
+async function probeCors(url) {
+  if (!url) return false;
+  try { const r = await fetch(url, { method: "HEAD", mode: "cors" }); return r.ok; } catch { return false; }
+}
+// Lydgraf: <audio> → forsterker → begrenser (mot skurring) → høyttaler. Lages første gang brukeren starter et spor.
+function ensureAudioGraph() {
+  if (ag || !corsOk || !window.AudioContext) return;
+  try {
+    const ctx = new AudioContext();
+    const src = ctx.createMediaElementSource(audio);
+    const gain = ctx.createGain();
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -3; lim.knee.value = 2; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.2;
+    src.connect(gain).connect(lim).connect(ctx.destination);
+    ag = { ctx, gain };
+  } catch (e) { console.warn("Web Audio ikke tilgjengelig", e); }
+}
+function applyGain(t) {
+  const g = Math.pow(10, gainDb(t) / 20);
+  ensureAudioGraph();
+  if (ag) { ag.ctx.resume().catch(() => {}); ag.gain.gain.value = g; audio.volume = 1; }
+  else audio.volume = Math.min(1, g);   // uten CORS: kan bare dempe sterke spor
+}
+// Måler lydstyrken i en lydfil (omtrent LUFS: blokker på 400 ms med støyport, som EBU R128 uten K-filter)
+async function measureLoudness(buf) {
+  const ctx = new OfflineAudioContext(1, 1, 44100);
+  const ab = await ctx.decodeAudioData(buf);
+  const n = ab.length, ch = ab.numberOfChannels, sr = ab.sampleRate;
+  const mono = new Float32Array(n);
+  for (let c = 0; c < ch; c++) { const d = ab.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += d[i] / ch; }
+  const block = Math.round(sr * 0.4), hop = Math.round(sr * 0.1), pw = [];
+  for (let s = 0; s + block <= n; s += hop) { let p = 0; for (let i = s; i < s + block; i++) p += mono[i] * mono[i]; pw.push(p / block); }
+  if (!pw.length) { let p = 0; for (let i = 0; i < n; i++) p += mono[i] * mono[i]; pw.push(p / Math.max(1, n)); }
+  const db = p => 10 * Math.log10(p + 1e-12);
+  let g = pw.filter(p => db(p) > -70);                      // absolutt port
+  if (!g.length) return -70;
+  const mean = g.reduce((a, b) => a + b, 0) / g.length;
+  g = g.filter(p => db(p) > db(mean) - 10);                 // relativ port
+  const v = g.reduce((a, b) => a + b, 0) / g.length;
+  return Math.round((db(v) - 0.7) * 10) / 10;
+}
 function speak(t) {
   if (!window.speechSynthesis) { toast("Nettleseren kan ikke lese opp tekst."); return; }
   speechSynthesis.cancel();
@@ -584,7 +704,7 @@ function play(t) {
   $("p-desc").textContent = t.desc || "";
   const lbl = t.label || "local";
   const bits = [];
-  if (t.creatorName) bits.push(esc(t.creatorName));
+  bits.push((isFollowed(t) ? "⭐ " : "") + esc(recName(t)));
   if (t.tags.length) bits.push(esc(t.tags.join(" · ")));
   if (me) bits.push(fmtDist(dist(me, t)) + " unna");
   if (t.seqName) bits.push(`Sekvens «${esc(t.seqName)}» #${t.seqNo}`);
@@ -601,6 +721,8 @@ function play(t) {
     speak(t);
   } else {
     $("p-tts").style.display = "none"; audio.style.display = "block";
+    if (corsOk) audio.crossOrigin = "anonymous";
+    applyGain(t);
     audio.src = t.audioUrl;
     lastProgress = Date.now();
     audio.play().catch(() => {});
@@ -656,6 +778,10 @@ function renderActions(t) {
   const box = $("p-actions"); box.innerHTML = "";
   const add = (label, fn, cls = "") => { const b = document.createElement("button"); b.textContent = label; b.className = cls; b.onclick = fn; box.appendChild(b); };
   add("💬 Svar", () => openRecorder({ replyTo: t }));   // play() viser bare opplåste spor, så alle her kan svare
+  if (recKey(t) && !isOwn(t)) {
+    add(isFollowed(t) ? "⭐ Følger" : "☆ Følg", () => { toggleFollow(t); renderActions(t); }, isFollowed(t) ? "on" : "");
+    add("🔕 Demp", () => toggleMute(t));
+  }
   add("🔗 Del", () => {
     const url = `${location.origin}${location.pathname}?pin=${encodeURIComponent(t.id)}`;
     (navigator.share ? navigator.share({ title: t.title || "SoundPin", url }) : navigator.clipboard.writeText(url).then(() => toast("Lenken er kopiert"))).catch(() => {});
@@ -673,7 +799,7 @@ function renderActions(t) {
   if (fb && user && !t.legacy && (t.creator === user.uid || isAdmin())) add("🗑 Slett", () => removeTrack(t));
 }
 function renderReplies(t) {
-  const reps = tracks.filter(x => x.replyTo === t.id).sort((a, b) => a.createdAt - b.createdAt);
+  const reps = tracks.filter(x => x.replyTo === t.id && !isMuted(x)).sort((a, b) => a.createdAt - b.createdAt);
   const box = $("p-replies");
   if (!reps.length) { box.style.display = "none"; return; }
   box.style.display = "block";
@@ -738,7 +864,8 @@ function checkNearby() {
   if (stalled) { console.warn("Sporet sto stille – går videre", current.id); closePlayer(); }
   const busy = current && ((!audio.paused && !audio.ended) || speaking);
   const pool = [...new Set([...visibleTracks(), ...opened])];
-  const cand = pool.map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d) || (opened.includes(x.t) && !isOwn(x.t))).sort((a, b) => a.d - b.d);
+  const cand = pool.map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d) || (opened.includes(x.t) && !isOwn(x.t)))
+    .sort((a, b) => (isFollowed(b.t) - isFollowed(a.t)) || (a.d - b.d));   // fulgte innspillere går foran
   if (carMode) $("car-next").textContent = cand[0] && !busy ? "" : nextAheadText();
   if (busy || !cand.length) return;
   play(cand[0].t);
@@ -790,6 +917,7 @@ function toggleWalk(force) {
   if (walking) {
     // Låser opp lyd på iOS (krever brukerhandling)
     audio.muted = true; audio.play().catch(() => {}).finally(() => { audio.pause(); audio.muted = false; });
+    ensureAudioGraph(); ag?.ctx.resume().catch(() => {});   // lydgrafen må startes av en brukerhandling (iPhone)
     if (!navigator.geolocation) { toast("Nettleseren støtter ikke posisjon."); return; }
     startWatch();
   } else if (carMode) setCar(false);
@@ -813,6 +941,13 @@ function computeSequences() {
 
 // ================= Data =================
 // Arkivspor fra den gamle appen, med adminens rydding (sp_archive) og eier (sp_legacy_owners) lagt over
+// Tapte arkivspor (lyd uten spor) som admin har plassert i ryddeverktøyet, blir vanlige arkivspor
+function placedLost() {
+  return lostRaw.filter(x => archiveMeta[x.id]?.lat != null).map(x => ({
+    id: x.id, name: x.title || "", description: "", lat: archiveMeta[x.id].lat, lng: archiveMeta[x.id].lng, tags: [],
+    audioUrl: x.audioUrl, imageUrl: x.imageUrl || null, creator: x.uid, createdAt: x.created, lost: true
+  }));
+}
 function normLegacy(p) {
   const m = archiveMeta[p.id] || {};
   const ownerId = m.owner || p.creator;
@@ -821,23 +956,29 @@ function normLegacy(p) {
     id: p.id, title: m.title ?? p.name, desc: m.desc ?? p.description, lat: p.lat, lng: p.lng, tags: m.tags || p.tags || [],
     audioUrl: p.audioUrl, imageUrl: p.imageUrl, kind: "audio", label: m.label || "local", legacy: true,
     legacyOwner: ownerId, creator: o.linkedUid || null,
-    creatorName: o.showName && o.name ? o.name : "SoundPin-arkivet", visibility: "public",
-    radius: m.radius || null, access: m.access || "map", status: m.status || null, archived: m.status === "archived",
+    creatorName: o.showName && o.name ? o.name : ARCHIVE_NAME, visibility: "public",
+    radius: m.radius || null, access: m.access || "map", status: m.status || null,
+    // Tapte spor vises først når admin har behold dem
+    archived: m.status === "archived" || (p.lost && m.status !== "keep"),
+    loud: m.loud ?? null,
     createdAt: p.createdAt ? Date.parse(p.createdAt) : 0
   };
 }
 let rawLegacy = null;
+const legacyAll = () => [...rawLegacy, ...placedLost()].map(normLegacy);
 function normTrack(id, d) {
   return { id, ...d, tags: d.tags || [], label: d.label || "local", createdAt: d.createdAt || 0, seqNo: d.seqNo || 0 };
 }
 function setTracks(list) {
   tracks = list; byId = new Map(list.map(t => [t.id, t]));
-  computeSequences(); renderTags(); render();
+  computeSequences(); renderTags(); renderRecFilter(); render();
 }
 async function loadAll() {
   if (!rawLegacy) {
     try { rawLegacy = await (await fetch("data/pins.json")).json(); }
     catch (e) { $("status").textContent = "Kunne ikke laste arkivet: " + e.message; rawLegacy = []; }
+    try { lostRaw = await (await fetch("data/lost.json")).json(); } catch { lostRaw = []; }
+    probeCors(rawLegacy.find(p => p.audioUrl)?.audioUrl).then(ok => { corsOk = ok; if (!ok) console.info("CORS er ikke satt på Storage – svake spor kan ikke forsterkes."); });
   }
   let fresh = [];
   if (fb) {
@@ -859,7 +1000,7 @@ async function loadAll() {
     try { (await getDocs(collection(fb.db, "sp_stats"))).forEach(s => stats[s.id] = s.data()); }
     catch (e) { console.warn("Lyttescore ikke lastet", e); }
   }
-  setTracks([...rawLegacy.map(normLegacy), ...fresh]);
+  setTracks([...legacyAll(), ...fresh]);
 }
 
 // ================= Firebase =================
@@ -966,6 +1107,13 @@ async function afterSignIn() {
       await fb.setDoc(ref, profile);
     }
     members = (await fb.getDocs(fb.collection(fb.db, "sp_users", user.uid, "members"))).docs.map(d => ({ uid: d.id, ...d.data() }));
+    // Følg/demp følger kontoen: slå sammen telefonen og kontoen
+    const f0 = follows.size, m0 = mutes.size;
+    (profile.follows || []).forEach(k => follows.add(k)); (profile.mutes || []).forEach(k => mutes.add(k));
+    follows.forEach(k => mutes.delete(k));
+    store.set("sp-follows", [...follows]); store.set("sp-mutes", [...mutes]);
+    if (follows.size !== (profile.follows || []).length || mutes.size !== (profile.mutes || []).length || f0 || m0)
+      fb.updateDoc(ref, { follows: [...follows], mutes: [...mutes] }).catch(e => console.warn(e));
   } catch (e) { console.warn("Profil ikke lastet", e); toast("Profilen kunne ikke lagres: " + (e.code || e.message) + ". Er sikkerhetsreglene publisert?", 8000); }
   updateMeButton();
   await syncUnlocks();
@@ -1086,6 +1234,7 @@ function openProfile() {
       <div class="row"><input type="text" readonly value="${esc(link)}" id="pf-link"><button id="pf-copy">Kopier</button></div>
       <div class="hint">De som åpner lenken og logger inn, kan høre sporene du deler med «Venner».</div>
       <label>Venner (${members.length})</label><div id="pf-members"></div>
+      <label>Innspillere du følger eller har dempet</label><div id="pf-recs"></div>
       <label>Mine spor</label><div id="pf-tracks"></div>
       <div id="pf-admin"></div>
       <div class="err" id="pf-err"></div>
@@ -1101,7 +1250,7 @@ function openProfile() {
       };
       mbox.appendChild(r);
     });
-    renderMyTracks();
+    renderMyTracks(); renderRecList();
     $("pf-copy").onclick = () => navigator.clipboard.writeText(link).then(() => toast("Lenken er kopiert"));
     $("pf-out").onclick = async () => { await fb.signOut(fb.auth); $("prof-bg").classList.remove("show"); location.reload(); };
     $("pf-save").onclick = saveProfile;
@@ -1116,6 +1265,20 @@ function openProfile() {
   }
   $("pf-close").onclick = () => $("prof-bg").classList.remove("show");
   $("prof-bg").classList.add("show");
+}
+// Følger og dempet, med mulighet til å angre
+function renderRecList() {
+  const box = $("pf-recs"); if (!box) return;
+  const nameOf = k => tracks.find(t => recKey(t) === k)?.creatorName || ARCHIVE_NAME;
+  const rows = [...[...follows].map(k => ({ k, f: true })), ...[...mutes].map(k => ({ k, f: false }))];
+  if (!rows.length) { box.innerHTML = '<div class="hint">Ingen ennå. Trykk «☆ Følg» eller «🔕 Demp» når et spor spilles.</div>'; return; }
+  box.innerHTML = "";
+  rows.forEach(({ k, f }) => {
+    const r = document.createElement("div"); r.className = "list-row";
+    r.innerHTML = `<span>${f ? "⭐" : "🔕"} ${esc(nameOf(k))}</span><button>${f ? "Slutt å følge" : "Opphev demping"}</button>`;
+    r.querySelector("button").onclick = () => { setRecFlag(f ? follows : mutes, k, false); renderRecList(); };
+    box.appendChild(r);
+  });
 }
 // Egne spor med lyttescore og historikk; her kan de også slettes
 function renderMyTracks() {
@@ -1166,10 +1329,13 @@ async function renderAdmin() {
   const pending = tracks.filter(t => t.review === "pending").length;
   box.innerHTML = `<label>Administrasjon</label>
     <div class="row"><button id="ad-queue" style="flex:1">✅ Godkjenningskø (${pending})</button>${isAdmin() ? '<button id="ad-archive" style="flex:1">🧹 Rydd arkivet</button>' : ""}</div>
+    ${isAdmin() ? `<div class="row" style="margin-top:.4rem"><button id="ad-lost" style="flex:1">🧩 Tapte spor (${lostRaw.filter(x => !archiveMeta[x.id]?.status).length})</button><button id="ad-loud" style="flex:1">🔊 Mål lydstyrke</button></div>` : ""}
     ${isAdmin() ? `<label>Brukere og roller</label><div id="ad-users" class="hint">Laster …</div><label>Rapporterte spor</label><div id="ad-reports" class="hint">Laster …</div>` : ""}`;
   $("ad-queue").onclick = () => { $("prof-bg").classList.remove("show"); openQueue(); };
   if (!isAdmin()) return;
   $("ad-archive").onclick = () => { $("prof-bg").classList.remove("show"); openArchive(); };
+  $("ad-lost").onclick = () => { $("prof-bg").classList.remove("show"); openLost(); };
+  $("ad-loud").onclick = () => { $("prof-bg").classList.remove("show"); openLoud(); };
   try {
     const us = (await fb.getDocs(fb.collection(fb.db, "sp_users"))).docs;
     const ub = $("ad-users"); ub.innerHTML = ""; ub.className = "";
@@ -1302,8 +1468,8 @@ async function arDecide(status) {
     radius: clampRadius(+$("ar-radius").value), access: AR.access, by: user.uid, at: Date.now()
   };
   try {
-    await fb.setDoc(fb.doc(fb.db, "sp_archive", p.id), data);
-    archiveMeta[p.id] = data;
+    await fb.setDoc(fb.doc(fb.db, "sp_archive", p.id), data, { merge: true });   // merge: behold målt lydstyrke
+    archiveMeta[p.id] = { ...archiveMeta[p.id], ...data };
   } catch (e) { $("ar-err").textContent = "Kunne ikke lagre: " + (e.code || e.message) + ". Er de nye sikkerhetsreglene publisert?"; return; }
   // I «Ubehandlet»-visningen forsvinner sporet fra lista; ellers går vi videre
   if (AR.status !== "all" && AR.status !== status) AR.list.splice(AR.i, 1); else AR.i++;
@@ -1313,7 +1479,7 @@ async function arDecide(status) {
 function arClose() {
   $("ar-audio")?.pause();
   $("ar-bg").classList.remove("show");
-  setTracks(rawLegacy.map(normLegacy).concat(tracks.filter(t => !t.legacy)));
+  setTracks(legacyAll().concat(tracks.filter(t => !t.legacy)));
 }
 // Eiere: navn som vises, om navnet skal vises (samtykke), og e-post som kobler sporene til en ny konto
 function arOwners() {
@@ -1362,6 +1528,181 @@ document.addEventListener("keydown", e => {
   else return;
   e.preventDefault();
 });
+
+// ================= Admin: tapte arkivspor =================
+// Lydfiler som mistet sporet sitt i den gamle appen. Bilde og tittel er koblet på via bruker og tidspunkt (data/lost.json),
+// og posisjonen foreslås fra spor samme person tok opp nær i tid. Resten plasseres ved å trykke i kartet.
+const LO = { list: [], i: 0, filter: "todo", owner: "", pos: null, map: null, marker: null, last: null, cats: new Set() };
+const loStatus = x => archiveMeta[x.id]?.status || "todo";
+const geoCache = store.get("sp-geo", {});
+async function geocode(q) {
+  if (q in geoCache) return geoCache[q];
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=nb&q=${encodeURIComponent(q)}`);
+    const j = await r.json();
+    geoCache[q] = j[0] ? { lat: +j[0].lat, lng: +j[0].lon, name: j[0].display_name } : null;
+  } catch { return null; }
+  store.set("sp-geo", geoCache); return geoCache[q];
+}
+async function openLost() {
+  if (!isAdmin()) return;
+  if (!Object.keys(AR.users).length) try { (await fb.getDocs(fb.collection(fb.db, "users"))).forEach(d => AR.users[d.id] = d.data()); } catch {}
+  loFilter();
+  $("lost-bg").classList.add("show");
+}
+function loFilter() {
+  LO.list = lostRaw.filter(x => {
+    const st = loStatus(x);
+    if (LO.filter === "todo" && st !== "todo") return false;
+    if (LO.filter === "suggested" && (st !== "todo" || x.sLat == null)) return false;
+    if (LO.filter === "manual" && (st !== "todo" || x.sLat != null)) return false;
+    if (["keep", "unsure", "archived"].includes(LO.filter) && st !== LO.filter) return false;
+    if (LO.owner && (x.uid || "?") !== LO.owner) return false;
+    return true;
+  });
+  LO.i = 0; loRender();
+}
+function loRender() {
+  const box = $("lost");
+  const todo = lostRaw.filter(x => loStatus(x) === "todo");
+  const cnt = s => lostRaw.filter(x => loStatus(x) === s).length;
+  const owners = {}; lostRaw.forEach(x => owners[x.uid || "?"] = (owners[x.uid || "?"] || 0) + 1);
+  const F = { todo: `Ubehandlet (${todo.length})`, suggested: `Med forslag (${todo.filter(x => x.sLat != null).length})`, manual: `Uten forslag (${todo.filter(x => x.sLat == null).length})`, keep: `Plassert (${cnt("keep")})`, unsure: `Usikker (${cnt("unsure")})`, archived: `Arkivert (${cnt("archived")})`, all: "Alle" };
+  box.innerHTML = `<div class="row"><h2 style="flex:1">Tapte spor</h2><button id="lo-x">✕</button></div>
+    <div class="hint">Lydfiler som mistet sporet sitt i den gamle appen. Plasser dem i kartet og behold dem, så blir de vanlige arkivspor.</div>
+    <div class="row" style="margin-top:.5rem; flex-wrap:wrap">
+      <select id="lo-f" style="flex:1">${Object.entries(F).map(([k, v]) => `<option value="${k}" ${LO.filter === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <select id="lo-o" style="flex:1"><option value="">Alle innspillere</option>${Object.entries(owners).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<option value="${esc(k)}" ${LO.owner === k ? "selected" : ""}>${esc(k !== "?" ? ownerLabel(k) : "Ukjent")} (${n})</option>`).join("")}</select>
+    </div><div id="lo-item"></div>`;
+  $("lo-x").onclick = () => { $("lo-audio")?.pause(); $("lost-bg").classList.remove("show"); setTracks(legacyAll().concat(tracks.filter(t => !t.legacy))); };
+  $("lo-f").onchange = e => { LO.filter = e.target.value; loFilter(); };
+  $("lo-o").onchange = e => { LO.owner = e.target.value; loFilter(); };
+  const x = LO.list[LO.i], it = $("lo-item");
+  if (!x) { it.innerHTML = '<p class="hint" style="margin-top:1rem">Ingen spor med dette utvalget.</p>'; return; }
+  const m = archiveMeta[x.id] || {};
+  LO.cats = new Set(m.tags || []);
+  LO.pos = m.lat != null ? { lat: m.lat, lng: m.lng } : x.sLat != null ? { lat: x.sLat, lng: x.sLng } : null;
+  const when = new Date(x.created);
+  const sugg = m.lat != null ? "Plassert tidligere." : x.sLat != null
+    ? `Foreslått fra «${esc(x.sFrom || "uten navn")}», som samme person tok opp ${x.sMin} min ${x.sWeak ? "fra hverandre (samme døgn – <b>sjekk nøye</b>)" : "fra hverandre"}.`
+    : "Ingen forslag. Søk på en adresse, bruk forrige plassering eller trykk i kartet.";
+  it.innerHTML = `<div class="hint" style="margin-top:.7rem">Spor ${LO.i + 1} av ${LO.list.length} · ${esc(x.uid ? ownerLabel(x.uid) : "Ukjent innspiller")} · ${when.toLocaleDateString("nb-NO")} kl. ${when.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })}</div>
+    ${x.imageUrl ? `<img src="${esc(x.imageUrl)}" style="width:100%; max-height:200px; object-fit:cover; border-radius:12px; margin-top:.4rem">` : ""}
+    <audio id="lo-audio" controls autoplay src="${esc(x.audioUrl)}" style="width:100%; margin-top:.4rem"></audio>
+    <label>Tittel</label><input type="text" id="lo-title" value="${esc(m.title ?? x.title ?? "")}" placeholder="Hva handler sporet om?">
+    <label>Kategorier</label><div class="chips" id="lo-cats">${CATEGORIES.map(c => `<button type="button" data-c="${esc(c)}" class="${LO.cats.has(c) ? "on" : ""}">${esc(c)}</button>`).join("")}</div>
+    <label>Plassering</label>
+    <div class="row"><input type="text" id="lo-q" placeholder="Adresse eller stedsnavn" value="${esc(x.sLat == null && m.lat == null ? (x.title || "") : "")}"><button id="lo-search">Søk</button>${LO.last ? '<button id="lo-last" title="Samme sted som forrige spor du plasserte">↺ Forrige</button>' : ""}</div>
+    <div class="hint" id="lo-hint">${sugg}</div>
+    <div id="lost-map"></div>
+    <div class="ar-btns">
+      <button id="lo-prev">←</button>
+      <button id="lo-keep" class="ar-keep">Plasser og behold <span class="kbd">B</span></button>
+      <button id="lo-unsure" class="ar-unsure">Usikker <span class="kbd">U</span></button>
+      <button id="lo-arch" class="ar-arch">Arkiver <span class="kbd">A</span></button>
+      <button id="lo-next">→</button>
+    </div><div class="err" id="lo-err"></div>`;
+  $("lo-cats").onclick = e => { const c = e.target.dataset.c; if (!c) return; LO.cats.has(c) ? LO.cats.delete(c) : LO.cats.add(c); e.target.classList.toggle("on"); };
+  $("lo-keep").onclick = () => loDecide("keep");
+  $("lo-unsure").onclick = () => loDecide("unsure");
+  $("lo-arch").onclick = () => loDecide("archived");
+  $("lo-prev").onclick = () => { if (LO.i > 0) { LO.i--; loRender(); } };
+  $("lo-next").onclick = () => { if (LO.i < LO.list.length - 1) { LO.i++; loRender(); } };
+  const search = async () => {
+    const q = $("lo-q").value.trim(); if (!q) return;
+    $("lo-hint").textContent = "Søker …";
+    const g = await geocode(q);
+    if (!g) { $("lo-hint").textContent = `Fant ikke «${q}». Trykk i kartet i stedet.`; return; }
+    loSetPos(g, true); $("lo-hint").textContent = `Fra adressesøk: ${g.name}. Flytt markøren hvis det ikke stemmer.`;
+  };
+  $("lo-search").onclick = search;
+  $("lo-q").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); search(); } };
+  if ($("lo-last")) $("lo-last").onclick = () => { loSetPos(LO.last, true); $("lo-hint").textContent = "Samme sted som forrige spor."; };
+  setTimeout(() => {
+    if (LO.map) { LO.map.remove(); LO.map = null; LO.marker = null; }
+    const c = LO.pos || LO.last || map.getCenter();
+    LO.map = L.map("lost-map", { zoomControl: true, attributionControl: false }).setView([c.lat, c.lng], LO.pos ? 16 : LO.last ? 14 : map.getZoom());
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(LO.map);
+    // Arkivspor i nærheten, så du ser hva personen tok opp ellers
+    rawLegacy.filter(p => p.lat != null && (!x.uid || p.creator === x.uid)).forEach(p => L.circleMarker([p.lat, p.lng], { radius: 4, color: "#8e8e93", weight: 1, fillOpacity: .6 }).bindTooltip(p.name || "").addTo(LO.map));
+    if (LO.pos) loSetPos(LO.pos);
+    LO.map.on("click", e => { loSetPos(e.latlng); $("lo-hint").textContent = "Plassert for hånd."; });
+    // Ingen forslag, men tittelen ser ut som et sted: prøv adressesøk automatisk
+    if (!LO.pos && $("lo-q").value.trim().length > 3) search();
+  }, 0);
+}
+function loSetPos(p, pan = false) {
+  LO.pos = { lat: p.lat, lng: p.lng };
+  if (!LO.map) return;
+  if (!LO.marker) { LO.marker = L.marker([p.lat, p.lng], { draggable: true }).addTo(LO.map); LO.marker.on("dragend", () => { LO.pos = LO.marker.getLatLng(); }); }
+  else LO.marker.setLatLng([p.lat, p.lng]);
+  if (pan) LO.map.setView([p.lat, p.lng], Math.max(LO.map.getZoom(), 16));
+}
+async function loDecide(status) {
+  const x = LO.list[LO.i]; if (!x) return;
+  if (status === "keep" && !LO.pos) { $("lo-err").textContent = "Plasser sporet i kartet først (trykk der det hører hjemme)."; return; }
+  const data = { status, title: $("lo-title").value.trim(), tags: [...LO.cats], owner: x.uid || null, lost: true, label: "local", by: user.uid, at: Date.now() };
+  if (LO.pos) { data.lat = LO.pos.lat; data.lng = LO.pos.lng; }
+  try { await fb.setDoc(fb.doc(fb.db, "sp_archive", x.id), data, { merge: true }); archiveMeta[x.id] = { ...archiveMeta[x.id], ...data }; }
+  catch (e) { $("lo-err").textContent = "Kunne ikke lagre: " + (e.code || e.message); return; }
+  if (status === "keep") LO.last = LO.pos;
+  $("lo-audio")?.pause();
+  if (!["all", status].includes(LO.filter)) LO.list.splice(LO.i, 1); else LO.i++;
+  if (LO.i >= LO.list.length) LO.i = Math.max(0, LO.list.length - 1);
+  loRender();
+}
+document.addEventListener("keydown", e => {
+  if (!$("lost-bg").classList.contains("show") || !$("lo-keep")) return;
+  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === "b") loDecide("keep"); else if (k === "u") loDecide("unsure"); else if (k === "a") loDecide("archived");
+  else if (e.key === "ArrowRight") $("lo-next").click(); else if (e.key === "ArrowLeft") $("lo-prev").click();
+  else if (e.key === " ") { const a = $("lo-audio"); a.paused ? a.play() : a.pause(); }
+  else return;
+  e.preventDefault();
+});
+
+// ================= Admin: mål lydstyrke =================
+// Henter hver lydfil én gang, måler lydstyrken og lagrer tallet (arkivspor i sp_archive, nye spor i sp_tracks). Filene endres ikke.
+const CORS_HELP = `Storage-bøtta må tillate CORS først. Åpne Google Cloud Console → Cloud Shell og kjør:<pre style="white-space:pre-wrap; font-size:.75rem; background:#f4f4f6; padding:.5rem; border-radius:8px">echo '[{"origin":["https://geiringelerang-debug.github.io"],"method":["GET","HEAD"],"maxAgeSeconds":3600}]' &gt; cors.json
+gsutil cors set cors.json gs://soundpin-50207.appspot.com</pre>Last siden på nytt etterpå.`;
+const LD = { running: false };
+function loudTodo() {
+  return tracks.filter(t => t.audioUrl && !t.archived && t.loud == null && t.kind !== "text");
+}
+function openLoud() {
+  if (!isAdmin()) return;
+  const box = $("loud"), todo = loudTodo();
+  const done = tracks.filter(t => t.audioUrl && t.loud != null).length;
+  box.innerHTML = `<div class="row"><h2 style="flex:1">Mål lydstyrke</h2><button id="ld-x">✕</button></div>
+    <p class="hint">Hvert spor måles én gang og spilles deretter av med jevn lydstyrke (mål ${TARGET_LOUD} LUFS). Lydfilene endres ikke. Nye opptak måles automatisk når de lagres.</p>
+    <p>${done} spor er målt · <b>${todo.length}</b> gjenstår.</p>
+    ${corsOk ? "" : `<div class="hint" style="color:#c00">${CORS_HELP}</div>`}
+    <div class="bar"><div id="ld-bar"></div></div><div class="hint" id="ld-txt"></div>
+    <div class="footer"><button id="ld-close">Lukk</button><button class="primary" id="ld-go" ${!corsOk || !todo.length ? "disabled" : ""}>${LD.running ? "Stopp" : "Start måling"}</button></div>`;
+  $("ld-x").onclick = $("ld-close").onclick = () => $("loud-bg").classList.remove("show");
+  $("ld-go").onclick = () => { if (LD.running) { LD.running = false; return; } runLoud(); };
+  $("loud-bg").classList.add("show");
+}
+async function runLoud() {
+  const todo = loudTodo(); let i = 0, ok = 0, fail = 0;
+  LD.running = true; $("ld-go").textContent = "Stopp";
+  const one = async t => {
+    try {
+      const r = await fetch(t.audioUrl, { mode: "cors" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const loud = await measureLoudness(await r.arrayBuffer());
+      if (t.legacy) { await fb.setDoc(fb.doc(fb.db, "sp_archive", t.id), { loud }, { merge: true }); archiveMeta[t.id] = { ...archiveMeta[t.id], loud }; }
+      else await fb.updateDoc(fb.doc(fb.db, "sp_tracks", t.id), { loud });
+      t.loud = loud; ok++;
+    } catch (e) { fail++; console.warn("Måling feilet", t.id, e); }
+  };
+  const worker = async () => { while (LD.running && i < todo.length) { await one(todo[i++]); const b = $("ld-bar"); if (b) { b.style.width = (100 * (ok + fail) / todo.length) + "%"; $("ld-txt").textContent = `${ok + fail} av ${todo.length} · ${fail} feilet`; } } };
+  await Promise.all([worker(), worker(), worker()]);
+  LD.running = false;
+  if ($("ld-go")) $("ld-go").textContent = "Start måling";
+  toast(`Lydstyrke målt for ${ok} spor${fail ? `, ${fail} feilet` : ""}.`, 5000);
+}
 
 // ================= Admin: godkjenningskø =================
 function openQueue() {
@@ -1594,8 +1935,9 @@ $("rec-save").onclick = async () => {
   const btn = $("rec-save"); btn.disabled = true; btn.textContent = "Laster opp …";
   try {
     const id = fb.doc(fb.collection(fb.db, "sp_tracks")).id;
-    let audioUrl = null, imageUrl = null;
+    let audioUrl = null, imageUrl = null, loud = null;
     if (R.kind === "audio") {
+      try { loud = await measureLoudness(await R.blob.arrayBuffer()); } catch (e) { console.warn("Lydstyrke ikke målt", e); }
       const ext = R.mime.includes("mp4") ? "m4a" : R.mime.includes("ogg") ? "ogg" : "webm";
       const r = fb.storageRef(fb.storage, `sp/${user.uid}/audio/${id}.${ext}`);
       await fb.uploadBytes(r, R.blob, { contentType: R.mime });
@@ -1621,7 +1963,7 @@ $("rec-save").onclick = async () => {
       access: R.replyTo ? "map" : R.access, hidden: !R.replyTo && R.access === "hidden",
       seqId, seqName, seqNo,
       replyTo: R.replyTo ? R.replyTo.id : null, wasHere: R.replyTo && unlocks[R.replyTo.id] ? unlocks[R.replyTo.id] : null,
-      label: "local", createdAt: Date.now()
+      label: "local", loud, createdAt: Date.now()
     };
     await fb.setDoc(fb.doc(fb.db, "sp_tracks", id), data);
     if (R.replyTo) await bump(R.replyTo.id, "r", { boost: Date.now() + REPLY_BOOST_DAYS * DAY });

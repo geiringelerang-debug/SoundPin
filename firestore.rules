@@ -1,5 +1,5 @@
 rules_version = '2';
-// SoundPin – Firestore-regler (versjon 3)
+// SoundPin – Firestore-regler (versjon 4)
 // Limes inn i Firebase-konsollen: Build → Firestore Database → Rules → Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -113,7 +113,7 @@ service cloud.firestore {
                     // Verifikatorer og admin: godkjenne, avvise, verifisere og trekke tilbake
                     || (isVerifier()
                         && request.resource.data.diff(resource.data).affectedKeys()
-                             .hasOnly(['label', 'visibility', 'review', 'reviewNote', 'reviewedBy', 'reviewedAt'])
+                             .hasOnly(['label', 'visibility', 'review', 'reviewNote', 'reviewedBy', 'reviewedAt', 'loud'])
                         && request.resource.data.label in ['local', 'verified']
                         && request.resource.data.visibility in ['private', 'friends', 'public']);
       allow delete: if (realUser() && resource.data.creator == request.auth.uid) || isAdmin();

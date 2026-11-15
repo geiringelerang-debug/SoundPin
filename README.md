@@ -2,6 +2,20 @@
 
 En tjeneste som leser opp historier om nærmiljøet mens du beveger deg ute.
 
+## Versjon 4 (november 2026)
+
+- **Følg og demp innspillere.** Når et spor spilles: «☆ Følg» eller «🔕 Demp». Det gjelder alle spor fra innspilleren, ikke bare dette sporet. Spor fra dem du følger får en gul ring i kartet. I gå- og bilmodus går de foran andre spor, regnes ikke med i grensen på 15 spor og spilles hver gang du passerer. Spor fra dem du har dempet, skjules og spilles ikke av. Valgene lagres på kontoen (`follows`, `mutes` i `sp_users`) og kan angres i profilen. Arkivspor fra eiere som ikke har sagt ja til at navnet vises, regnes som én innspiller: «SoundPin-arkivet».
+- **Filter på innspiller** under kategoriene (vises når det finnes mer enn én).
+- **Jevn lydstyrke.** Hvert spor har en målt lydstyrke (`loud`, ca. LUFS), og appen justerer nivået mot −16 LUFS når sporet spilles, med en begrenser mot skurring. Lydfilene endres ikke. Nye opptak måles når de lagres. Gamle spor måles med profil → Administrasjon → 🔊 *Mål lydstyrke*.
+  - **Krever CORS på Storage-bøtta.** Uten det kan svake spor ikke forsterkes, og målingen virker ikke. Sterke spor dempes likevel, men ikke på iPhone. Kjør én gang i Google Cloud Console → Cloud Shell:
+    ```
+    echo '[{"origin":["https://geiringelerang-debug.github.io"],"method":["GET","HEAD"],"maxAgeSeconds":3600}]' > cors.json
+    gsutil cors set cors.json gs://soundpin-50207.appspot.com
+    ```
+- **Tapte spor** (profil → Administrasjon → 🧩): de 741 lydfilene som mistet sporet sitt i den gamle appen, ett om gangen. `data/lost.json` kobler 144 av dem til et bilde ut fra bruker og tidspunkt, og bildenavnet blir tittel. 197 har en foreslått posisjon fra et spor samme person tok opp innen en time, og 271 til fra samme døgn (merket «sjekk nøye»). Resten plasseres ved adressesøk, «↺ Forrige» eller et trykk i kartet. Hurtigtaster B/U/A, ←/→ og mellomrom. Sporet blir et vanlig arkivspor når det er plassert og beholdt.
+
+**Lim inn den nye `firestore.rules` og publiser** (verifikatorer kan nå lagre målt lydstyrke på nye spor).
+
 ## Versjon 3 (november 2026)
 
 - **Radius per spor (10–500 m).** Settes under «Avansert» når sporet lages; over 200 m krever autorisert status. Brukeren kan skalere alle radiuser (Nær / Normal / Vid) i profilen. Åpne spor starter fortsatt ca. 20 s før du er fremme i fart. Et spor som er spilt, utløses ikke igjen før du har vært et stykke utenfor radiusen (hysterese). Gå-modus viser GPS-nøyaktigheten (±m).
