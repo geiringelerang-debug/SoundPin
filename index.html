@@ -230,6 +230,26 @@
   #intro .dots i.on { background: var(--accent); }
   #intro .nav { display: flex; gap: .5rem; align-items: center; }
   #intro .nav .sp { flex: 1; }
+  /* Kort animasjon ved oppstart som frister med bruksområdene */
+  #teaser {
+    position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 9.2rem); z-index: 1550;
+    background: #fff; border-radius: 16px; box-shadow: 0 4px 20px #0003; padding: .55rem .5rem .55rem .9rem;
+    display: none; align-items: center; gap: .6rem; width: min(92vw, 380px); cursor: pointer;
+  }
+  #teaser.show { display: flex; animation: tsIn .4s ease-out; }
+  #teaser .lead { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  #teaser .slot { flex: 1; min-width: 0; height: 2.9rem; overflow: hidden; position: relative; }
+  #teaser .item { position: absolute; inset: 0; display: flex; align-items: center; gap: .55rem; font-size: .95rem; font-weight: 600; animation: tsItem .45s ease-out; }
+  #teaser .item .i { font-size: 1.5rem; flex: none; }
+  #teaser .item .h { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #teaser .item > span:last-child { min-width: 0; flex: 1; }
+  #teaser .item.end { font-weight: 500; font-size: .88rem; line-height: 1.25; }
+  #teaser .go { background: var(--accent); color: #fff; font-size: .8rem; padding: .35rem .7rem; }
+  #teaser .x { background: none; color: var(--muted); padding: .2rem .4rem; font-size: .9rem; }
+  @keyframes tsIn { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  @keyframes tsItem { from { opacity: 0; transform: translateY(70%); } to { opacity: 1; transform: none; } }
+  #help-btn.pulse { animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 #e4572e88; } 50% { box-shadow: 0 0 0 8px #e4572e00; background: var(--accent); color: #fff; } }
   .uc { border: 1px solid var(--line); border-radius: 14px; padding: .7rem .8rem; margin-top: .6rem; }
   .uc h3 { margin: 0 0 .25rem; font-size: 1rem; }
   .uc p { margin: 0 0 .4rem; font-size: .88rem; color: var(--muted); line-height: 1.4; }
@@ -301,6 +321,13 @@
   </div>
   <label class="hint" style="display:flex; gap:.4rem; align-items:center; justify-content:center; margin-top:.7rem"><input type="checkbox" id="in-off"> Ikke vis dette når appen starter</label>
 </div></div>
+
+<!-- Oppstart: frister med bruksområdene -->
+<div id="teaser" title="Se bruksområdene">
+  <div class="slot" id="ts-slot"></div>
+  <button class="go" id="ts-go">Prøv</button>
+  <button class="x" id="ts-x" title="Lukk">✕</button>
+</div>
 
 <!-- Hjelp: bruksområder -->
 <div class="sheet-bg" id="help-bg"><div class="sheet" id="help"></div></div>
@@ -2339,7 +2366,7 @@ function showIntro(i = 0) {
   $("intro").classList.add("show");
 }
 function closeIntro() { store.set("sp-intro-off", $("in-off").checked); $("intro").classList.remove("show"); }
-$("in-skip").onclick = closeIntro;
+$("in-skip").onclick = () => { closeIntro(); setTimeout(showTeaser, 400); };
 $("in-prev").onclick = () => showIntro(introAt - 1);
 $("in-next").onclick = () => { if (INTRO[introAt].last) { closeIntro(); openHelp(); } else showIntro(introAt + 1); };
 // Sveip mellom sidene
@@ -2350,24 +2377,29 @@ $("intro").addEventListener("touchend", e => { if (inX == null) return; const dx
 // ================= Bruksområder =================
 // Eksempler som bruker funksjonene appen allerede har. «Prøv» åpner skjemaet med riktige valg.
 const USE_CASES = [
-  { ico: "🚗", h: "Spørrekonkurranse på vei til hytta", txt: "Lag en quiz langs veien som familien hører i bilen. Still spørsmålet i ett spor og gi svaret i neste – eller bruk kodeord. Del med gjestene, og avslutt med et spor som forklarer hvor de parkerer.", how: "Ny sekvens · kategori quiz · del med venner", preset: { cats: ["quiz"], seq: "Quiz til hytta", vis: "friends" } },
-  { ico: "💌", h: "Hilsen der dere møttes første gang", txt: "Legg igjen en hilsen til kjæresten din på stedet der dere møttes. Gjør sporet skjult, og send lenken bare til henne eller ham.", how: "Skjult skattejakt · bare meg · del lenken", preset: { access: "hidden", vis: "private", radius: 30 } },
+  { ico: "🚗", h: "Spørrekonkurranse på vei til hytta", s: "Quiz på vei til hytta", txt: "Lag en quiz langs veien som familien hører i bilen. Still spørsmålet i ett spor og gi svaret i neste – eller bruk kodeord. Del med gjestene, og avslutt med et spor som forklarer hvor de parkerer.", how: "Ny sekvens · kategori quiz · del med venner", preset: { cats: ["quiz"], seq: "Quiz til hytta", vis: "friends" } },
+  { ico: "💌", h: "Hilsen der dere møttes første gang", s: "Hilsen der dere møttes", txt: "Legg igjen en hilsen til kjæresten din på stedet der dere møttes. Gjør sporet skjult, og send lenken bare til henne eller ham.", how: "Skjult skattejakt · bare meg · del lenken", preset: { access: "hidden", vis: "private", radius: 30 } },
   { ico: "🏘", h: "Fortell om nabolaget ditt", txt: "Hvem bygde huset på hjørnet? Hva skjedde på løkka? Legg spor ved stedene, gjerne som en vandring i en sekvens.", how: "Spor ved hvert sted · gjerne sekvens", preset: { cats: ["lokalhistorie"] } },
   { ico: "🗣", h: "Dialektreisen fra sør til nord", txt: "Fortell en artig historie på din dialekt der du bor, og utfordre noen du kjenner til å gjøre det samme et annet sted. Så kan andre reise gjennom landet og følge dialektene.", how: "Kategori dialekt · 📣 Utfordre en venn", preset: { cats: ["dialekt"], vis: "public" } },
   { ico: "🕰", h: "Memory lane", txt: "Fortell et minne fra et sted, og utfordre venner til å fortelle sine minner fra samme sted med «💬 Svar». Som et fotoalbum – bare med ekte stemmer.", how: "Kategori minner · 📣 Utfordre · 💬 Svar", preset: { cats: ["minner"] } },
-  { ico: "🗝", h: "Rebusløp med gjemte spor", txt: "Gjem postene som skjulte spor i en sekvens. Hver post gir et hint og ber om et kodeord før neste post dukker opp. Slå på tidtaking og se hvem som er raskest.", how: "Skjult skattejakt · ny sekvens med tidtaking · kodeord", preset: { access: "hidden", seq: "Rebusløp", timed: true, cats: ["quiz"], radius: 25 } },
+  { ico: "🗝", h: "Rebusløp med gjemte spor", s: "Rebusløp med tidtaking", txt: "Gjem postene som skjulte spor i en sekvens. Hver post gir et hint og ber om et kodeord før neste post dukker opp. Slå på tidtaking og se hvem som er raskest.", how: "Skjult skattejakt · ny sekvens med tidtaking · kodeord", preset: { access: "hidden", seq: "Rebusløp", timed: true, cats: ["quiz"], radius: 25 } },
   { ico: "⛵", h: "SoundPin-regatta", txt: "Legg ut spor som merker båtene må innom i rekkefølge. Del erfaringer om farvannet ved hvert merke – strøm, grunner, gode ankringsplasser. Tiden går fra første til siste merke, gjerne med tidsfrist.", how: "Ny sekvens med tidtaking · radius fra 20 m · kategori seiling", preset: { seq: "Regatta", timed: true, cats: ["seiling"], radius: 50 } }
 ];
 function openHelp() {
   const box = $("help");
   box.innerHTML = `<div class="row"><h2 style="flex:1">💡 Bruksområder</h2><button id="help-x">✕</button></div>
-    <p class="hint">Eksempler på hva du kan lage med SoundPin. «Prøv» åpner skjemaet for nytt spor med valgene ferdig satt – du tar opp der krysset står.</p>
+    <p class="hint">Her er noen eksempler på hva du kan lage med SoundPin. «Prøv» åpner skjemaet for nytt spor med valgene ferdig satt – du tar opp der krysset står.</p>
     ${USE_CASES.map((u, i) => `<div class="uc"><h3>${u.ico} ${esc(u.h)}</h3><p>${esc(u.txt)}</p><div class="row"><span class="hint" style="flex:1">${esc(u.how)}</span><button data-uc="${i}" class="primary">Prøv</button></div></div>`).join("")}
+    <div class="uc" style="background:#fff6f2; border-color:#f3c9b9"><h3>✨ …og mange andre måter</h3><p>Guidet tur for turister, skattejakt i bursdagen, historielagets vandring, natursti for skoleklassen, tips til fiskeplasser, en hilsen til barnebarna på hytta. Bare fantasien setter grenser – lag ditt eget spor og se hva andre finner på.</p><div class="row"><span class="hint" style="flex:1">Hold inne krysset i kartet for å begynne</span><button data-uc="free">Lag et spor</button></div></div>
     <div class="footer"><button id="help-intro">▶ Se introduksjonen</button><button id="help-close">Lukk</button></div>`;
   const close = () => $("help-bg").classList.remove("show");
   $("help-x").onclick = close; $("help-close").onclick = close;
   $("help-intro").onclick = () => { close(); showIntro(0); };
-  box.querySelectorAll("[data-uc]").forEach(b => b.onclick = () => { close(); tryUseCase(USE_CASES[+b.dataset.uc]); });
+  box.querySelectorAll("[data-uc]").forEach(b => b.onclick = () => {
+    close();
+    if (b.dataset.uc === "free") { if (canRecord()) { R.crossPos = map.getCenter(); openRecorder({}); setPos("map"); } return; }
+    tryUseCase(USE_CASES[+b.dataset.uc]);
+  });
   $("help-bg").classList.add("show");
 }
 function tryUseCase(u) {
@@ -2389,13 +2421,38 @@ function tryUseCase(u) {
   updateSummary();
   toast(`${u.ico} ${u.h}: valgene er satt. Ta opp, gi sporet en tittel og lagre.`, 5000);
 }
-$("help-btn").onclick = openHelp;
+$("help-btn").onclick = () => { hideTeaser(); openHelp(); };
+
+// Kort animasjon ved oppstart: bruksområdene ruller forbi, og «?» blinker så man ser hvor de finnes
+const TS = { timer: null, i: 0 };
+function showTeaser() {
+  if (run || $("teaser").classList.contains("show")) return;
+  TS.i = 0; $("teaser").classList.add("show"); $("help-btn").classList.add("pulse");
+  const step = () => {
+    const slot = $("ts-slot");
+    if (TS.i < USE_CASES.length) {
+      const u = USE_CASES[TS.i++];
+      slot.innerHTML = `<div class="item"><span class="i">${u.ico}</span><span><span class="lead">Prøv for eksempel</span><span class="h">${esc(u.s || u.h)}</span></span></div>`;
+      TS.timer = setTimeout(step, 1500);
+    } else {
+      slot.innerHTML = `<div class="item end"><span class="i">✨</span><span>…og mange andre måter. Trykk her eller på <b>?</b> for å prøve!</span></div>`;
+      TS.timer = setTimeout(hideTeaser, 6000);
+    }
+  };
+  step();
+}
+function hideTeaser() { clearTimeout(TS.timer); $("teaser").classList.remove("show"); $("help-btn").classList.remove("pulse"); }
+$("teaser").onclick = e => { if (e.target.id === "ts-x") return; hideTeaser(); openHelp(); };
+$("ts-x").onclick = e => { e.stopPropagation(); hideTeaser(); };
 
 // ================= Oppstart =================
 (async () => {
   // Introduksjonen vises ved oppstart, men ikke når appen åpnes fra en lenke til et spor eller en invitasjon
   const qs0 = new URLSearchParams(location.search);
-  if (!store.get("sp-intro-off", false) && !qs0.get("pin") && !qs0.get("venn")) showIntro(0);
+  if (!qs0.get("pin") && !qs0.get("venn")) {
+    if (!store.get("sp-intro-off", false)) showIntro(0);
+    else setTimeout(showTeaser, 1200);
+  }
   await loadAll();
   renderRun();
   const id = new URLSearchParams(location.search).get("pin");
