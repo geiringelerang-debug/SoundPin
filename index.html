@@ -458,6 +458,11 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script>
+  // Feil vises nederst på skjermen, så de kan tas skjermbilde av på telefonen
+  window.addEventListener("error", e => { const d = document.createElement("div"); d.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#b00;color:#fff;font:12px system-ui;padding:6px 10px"; d.textContent = "Feil: " + (e.message || e.type) + " (" + (e.filename || "").split("/").pop() + ":" + (e.lineno || "") + ")"; document.body && document.body.appendChild(d); });
+  window.addEventListener("unhandledrejection", e => console.warn("Avvist løfte", e.reason));
+</script>
 <script type="module">
 import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js";
 
@@ -488,7 +493,7 @@ const DAY = 864e5;
 const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
 const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
 const ARCHIVE_NAME = "SoundPin-arkivet";
-const APP_VERSION = "5.3";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
+const APP_VERSION = "5.4";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
 
 // ================= Tilstand =================
 const store = {
@@ -2477,9 +2482,13 @@ $("ts-x").onclick = e => { e.stopPropagation(); hideTeaser(); };
 (async () => {
   // Introduksjonen vises ved oppstart, men ikke når appen åpnes fra en lenke til et spor eller en invitasjon
   const qs0 = new URLSearchParams(location.search);
+  if (qs0.has("intro")) store.set("sp-intro-off", false);            // ?intro tvinger fram introduksjonen
+  if (run && Date.now() - (run.start || 0) > 12 * 3600e3) { run = null; store.set("sp-run", null); }   // gamle løp glemmes
+  const introOff = store.get("sp-intro-off", false) === true;
+  console.info("Oppstart", { versjon: APP_VERSION, introOff, run: !!run, search: location.search });
   if (!qs0.get("pin") && !qs0.get("venn")) {
-    if (!store.get("sp-intro-off", false)) showIntro(0);
-    else setTimeout(showTeaser, 1200);
+    try { if (!introOff) showIntro(0); else setTimeout(showTeaser, 1200); }
+    catch (e) { console.error(e); toast("Introduksjonen feilet: " + e.message, 8000); }
   }
   await loadAll();
   renderRun();
