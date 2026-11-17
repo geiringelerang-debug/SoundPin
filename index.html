@@ -488,6 +488,7 @@ const DAY = 864e5;
 const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
 const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
 const ARCHIVE_NAME = "SoundPin-arkivet";
+const APP_VERSION = "5.3";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
 
 // ================= Tilstand =================
 const store = {
@@ -2417,7 +2418,8 @@ function openHelp() {
     <p class="hint">Her er noen eksempler på hva du kan lage med SoundPin. «Prøv» åpner skjemaet for nytt spor med valgene ferdig satt – du tar opp der krysset står.</p>
     ${USE_CASES.map((u, i) => `<div class="uc"><h3>${u.ico} ${esc(u.h)}</h3><p>${esc(u.txt)}</p><div class="row"><span class="hint" style="flex:1">${esc(u.how)}</span><button data-uc="${i}" class="primary">Prøv</button></div></div>`).join("")}
     <div class="uc" style="background:#fff6f2; border-color:#f3c9b9"><h3>✨ …og mange andre måter</h3><p>Guidet tur for turister, skattejakt i bursdagen, historielagets vandring, natursti for skoleklassen, tips til fiskeplasser, en hilsen til barnebarna på hytta. Bare fantasien setter grenser – lag ditt eget spor og se hva andre finner på.</p><div class="row"><span class="hint" style="flex:1">Hold inne krysset i kartet for å begynne</span><button data-uc="free">Lag et spor</button></div></div>
-    <div class="footer"><button id="help-intro">▶ Se introduksjonen</button><button id="help-close">Lukk</button></div>`;
+    <div class="footer"><button id="help-intro">▶ Se introduksjonen</button><button id="help-close">Lukk</button></div>
+    <div class="hint" style="text-align:center; margin-top:.5rem">SoundPin versjon ${APP_VERSION}</div>`;
   const close = () => $("help-bg").classList.remove("show");
   $("help-x").onclick = close; $("help-close").onclick = close;
   $("help-intro").onclick = () => { close(); showIntro(0); };
