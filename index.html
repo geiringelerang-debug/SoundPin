@@ -218,35 +218,35 @@
   .res-row .t { font-variant-numeric: tabular-nums; }
 
   /* Introduksjon og bruksområder */
-  #intro { position: fixed; inset: 0; z-index: 3500; background: #000a; display: none; align-items: center; justify-content: center; padding: 1rem; }
-  #intro.show { display: flex; }
-  #intro .card { background: #fff; border-radius: 20px; max-width: 440px; width: 100%; padding: 1.4rem 1.3rem 1rem; box-shadow: 0 10px 40px #0005; }
-  #intro .big { font-size: 2.6rem; text-align: center; }
-  #intro h2 { text-align: center; margin: .3rem 0 .6rem; font-size: 1.25rem; }
-  #intro .txt { font-size: .95rem; line-height: 1.45; min-height: 8.5rem; }
-  #intro .txt ul { padding-left: 1.1rem; margin: .4rem 0; } #intro .txt li { margin: .25rem 0; }
-  #intro .dots { display: flex; justify-content: center; gap: .35rem; margin: .8rem 0; }
-  #intro .dots i { width: 7px; height: 7px; border-radius: 50%; background: #ddd; }
-  #intro .dots i.on { background: var(--accent); }
-  #intro .nav { display: flex; gap: .5rem; align-items: center; }
-  #intro .nav .sp { flex: 1; }
+  #spw-guide { position: fixed; inset: 0; z-index: 3500; background: #000a; display: none; align-items: center; justify-content: center; padding: 1rem; }
+  #spw-guide.show { display: flex; }
+  #spw-guide .card { background: #fff; border-radius: 20px; max-width: 440px; width: 100%; padding: 1.4rem 1.3rem 1rem; box-shadow: 0 10px 40px #0005; }
+  #spw-guide .big { font-size: 2.6rem; text-align: center; }
+  #spw-guide h2 { text-align: center; margin: .3rem 0 .6rem; font-size: 1.25rem; }
+  #spw-guide .txt { font-size: .95rem; line-height: 1.45; min-height: 8.5rem; }
+  #spw-guide .txt ul { padding-left: 1.1rem; margin: .4rem 0; } #spw-guide .txt li { margin: .25rem 0; }
+  #spw-guide .dots { display: flex; justify-content: center; gap: .35rem; margin: .8rem 0; }
+  #spw-guide .dots i { width: 7px; height: 7px; border-radius: 50%; background: #ddd; }
+  #spw-guide .dots i.on { background: var(--accent); }
+  #spw-guide .nav { display: flex; gap: .5rem; align-items: center; }
+  #spw-guide .nav .sp { flex: 1; }
   /* Kort animasjon ved oppstart som frister med bruksområdene */
-  #teaser {
+  #spw-hint {
     position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 9.2rem); z-index: 1550;
     background: #fff; border: 2px solid var(--accent); border-radius: 16px; box-shadow: 0 6px 24px #e4572e55; padding: .55rem .5rem .55rem .9rem;
     display: none; align-items: center; gap: .6rem; width: min(92vw, 380px); cursor: pointer;
   }
-  #teaser.show { display: flex; animation: tsIn .5s cubic-bezier(.3, 1.6, .5, 1); }
-  #teaser .item .i { animation: pop .5s cubic-bezier(.3, 1.6, .5, 1); }
-  #teaser .lead { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-  #teaser .slot { flex: 1; min-width: 0; height: 2.9rem; overflow: hidden; position: relative; }
-  #teaser .item { position: absolute; inset: 0; display: flex; align-items: center; gap: .55rem; font-size: .95rem; font-weight: 600; animation: tsItem .45s ease-out; }
-  #teaser .item .i { font-size: 1.5rem; flex: none; }
-  #teaser .item .h { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #teaser .item > span:last-child { min-width: 0; flex: 1; }
-  #teaser .item.end { font-weight: 500; font-size: .88rem; line-height: 1.25; }
-  #teaser .go { background: var(--accent); color: #fff; font-size: .8rem; padding: .35rem .7rem; }
-  #teaser .x { background: none; color: var(--muted); padding: .2rem .4rem; font-size: .9rem; }
+  #spw-hint.show { display: flex; animation: tsIn .5s cubic-bezier(.3, 1.6, .5, 1); }
+  #spw-hint .item .i { animation: pop .5s cubic-bezier(.3, 1.6, .5, 1); }
+  #spw-hint .lead { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  #spw-hint .slot { flex: 1; min-width: 0; height: 2.9rem; overflow: hidden; position: relative; }
+  #spw-hint .item { position: absolute; inset: 0; display: flex; align-items: center; gap: .55rem; font-size: .95rem; font-weight: 600; animation: tsItem .45s ease-out; }
+  #spw-hint .item .i { font-size: 1.5rem; flex: none; }
+  #spw-hint .item .h { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #spw-hint .item > span:last-child { min-width: 0; flex: 1; }
+  #spw-hint .item.end { font-weight: 500; font-size: .88rem; line-height: 1.25; }
+  #spw-hint .go { background: var(--accent); color: #fff; font-size: .8rem; padding: .35rem .7rem; }
+  #spw-hint .x { background: none; color: var(--muted); padding: .2rem .4rem; font-size: .9rem; }
   @keyframes tsIn { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
   @keyframes tsItem { from { opacity: 0; transform: translateY(70%); } to { opacity: 1; transform: none; } }
   #help-btn.pulse { animation: pulse 1.1s ease-in-out infinite; }
@@ -315,7 +315,7 @@
 <div id="run"><span id="run-txt"></span><button id="run-x" title="Avbryt løpet">✕</button></div>
 
 <!-- Introduksjon -->
-<div id="intro"><div class="card">
+<div id="spw-guide"><div class="card">
   <div class="big" id="in-ico"></div>
   <h2 id="in-h"></h2>
   <div class="txt" id="in-txt"></div>
@@ -330,7 +330,7 @@
 </div></div>
 
 <!-- Oppstart: frister med bruksområdene -->
-<div id="teaser" title="Se bruksområdene">
+<div id="spw-hint" title="Se bruksområdene">
   <div class="slot" id="ts-slot"></div>
   <button class="go" id="ts-go">Prøv</button>
   <button class="x" id="ts-x" title="Lukk">✕</button>
@@ -493,7 +493,7 @@ const DAY = 864e5;
 const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
 const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
 const ARCHIVE_NAME = "SoundPin-arkivet";
-const APP_VERSION = "5.4";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
+const APP_VERSION = "5.5";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
 
 // ================= Tilstand =================
 const store = {
@@ -2378,13 +2378,19 @@ function showIntro(i = 0) {
   $("in-next").textContent = s.last ? "Se bruksområder" : "Neste";
   $("in-skip").textContent = s.last ? "Start" : "Hopp over";
   $("in-off").checked = !!store.get("sp-intro-off", false);
-  $("intro").classList.add("show");
+  $("spw-guide").classList.add("show");
+  setTimeout(() => {
+    if (getComputedStyle($("spw-guide")).display === "none") {
+      console.warn("Introduksjonen er skjult av nettleseren");
+      toast("Nettleseren skjuler introduksjonen (innholdsblokkering?). Trykk ? for bruksområdene.", 8000);
+    }
+  }, 300);
   clearTimeout(showcase.t);
   if (s.show) {
     // Forsiden: bruksområdene ruller forbi med stort ikon, så de fanger oppmerksomheten med en gang
     let k = 0;
     const tick = () => {
-      if (!$("in-uc") || !$("intro").classList.contains("show")) return;
+      if (!$("in-uc") || !$("spw-guide").classList.contains("show")) return;
       const u = USE_CASES[k++ % USE_CASES.length];
       const i = $("in-uc-i"), c = $("in-uc-c");
       i.textContent = u.ico; c.textContent = u.s || u.h;
@@ -2397,14 +2403,14 @@ function showIntro(i = 0) {
   }
 }
 const showcase = { t: null };
-function closeIntro() { clearTimeout(showcase.t); store.set("sp-intro-off", $("in-off").checked); $("intro").classList.remove("show"); }
+function closeIntro() { clearTimeout(showcase.t); store.set("sp-intro-off", $("in-off").checked); $("spw-guide").classList.remove("show"); }
 $("in-skip").onclick = () => { closeIntro(); setTimeout(showTeaser, 400); };
 $("in-prev").onclick = () => showIntro(introAt - 1);
 $("in-next").onclick = () => { if (INTRO[introAt].last) { closeIntro(); openHelp(); } else showIntro(introAt + 1); };
 // Sveip mellom sidene
 let inX = null;
-$("intro").addEventListener("touchstart", e => inX = e.touches[0].clientX, { passive: true });
-$("intro").addEventListener("touchend", e => { if (inX == null) return; const dx = e.changedTouches[0].clientX - inX; inX = null; if (Math.abs(dx) > 50) showIntro(introAt + (dx < 0 ? 1 : -1)); });
+$("spw-guide").addEventListener("touchstart", e => inX = e.touches[0].clientX, { passive: true });
+$("spw-guide").addEventListener("touchend", e => { if (inX == null) return; const dx = e.changedTouches[0].clientX - inX; inX = null; if (Math.abs(dx) > 50) showIntro(introAt + (dx < 0 ? 1 : -1)); });
 
 // ================= Bruksområder =================
 // Eksempler som bruker funksjonene appen allerede har. «Prøv» åpner skjemaet med riktige valg.
@@ -2459,8 +2465,8 @@ $("help-btn").onclick = () => { hideTeaser(); openHelp(); };
 // Kort animasjon ved oppstart: bruksområdene ruller forbi, og «?» blinker så man ser hvor de finnes
 const TS = { timer: null, i: 0 };
 function showTeaser() {
-  if (run || $("teaser").classList.contains("show")) return;
-  TS.i = 0; $("teaser").classList.add("show"); $("help-btn").classList.add("pulse");
+  if (run || $("spw-hint").classList.contains("show")) return;
+  TS.i = 0; $("spw-hint").classList.add("show"); $("help-btn").classList.add("pulse");
   const step = () => {
     const slot = $("ts-slot");
     if (TS.i < USE_CASES.length) {
@@ -2474,8 +2480,8 @@ function showTeaser() {
   };
   step();
 }
-function hideTeaser() { clearTimeout(TS.timer); $("teaser").classList.remove("show"); $("help-btn").classList.remove("pulse"); }
-$("teaser").onclick = e => { if (e.target.id === "ts-x") return; hideTeaser(); openHelp(); };
+function hideTeaser() { clearTimeout(TS.timer); $("spw-hint").classList.remove("show"); $("help-btn").classList.remove("pulse"); }
+$("spw-hint").onclick = e => { if (e.target.id === "ts-x") return; hideTeaser(); openHelp(); };
 $("ts-x").onclick = e => { e.stopPropagation(); hideTeaser(); };
 
 // ================= Oppstart =================
