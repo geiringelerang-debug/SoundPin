@@ -2,6 +2,18 @@
 
 En tjeneste som leser opp historier om nærmiljøet mens du beveger deg ute.
 
+## Versjon 5 (november 2026)
+
+- **Nedtelling ved opptak:** tidtakeren viser tiden som er igjen. De siste 10 sekundene blir den rød, og telefonen vibrerer.
+- **Arkiver fra kartet (admin):** «🗄 Arkiver» i spilleren skjuler sporet for alle, med «Angre». Arkiverte nye spor kan gjenopprettes i profilen → Administrasjon. Arkivspor fra den gamle appen finnes under «Rydd arkivet» → Arkivert.
+- **Introduksjon** ved oppstart med «Hopp over», og **bruksområder** under «?» øverst. «Prøv» åpner skjemaet med valgene ferdig satt.
+- **Kodeord:** et spor kan kreve riktig svar (flere svar skilles med /). Svaret lagres som SHA-256. Neste skjulte spor i sekvensen dukker opp når svaret er riktig.
+- **Tidtaking:** en ny sekvens kan få tidtaking og tidsfrist. Klokka går fra man forlater første spor til man er innom siste, i rekkefølge og innenfor satt radius. Resultater lagres i `sp_results`.
+- **📣 Utfordre:** deler sporet med en ferdig utfordringstekst.
+- Ny kategori «seiling». Svar på spor med kategorien «minner» vises som «Minner fra dette stedet».
+
+**Lim inn den nye `firestore.rules` og publiser** (ny samling `sp_results`, og admin kan arkivere nye spor).
+
 ## Versjon 4 (november 2026)
 
 - **Følg og demp innspillere.** Når et spor spilles: «☆ Følg» eller «🔕 Demp». Det gjelder alle spor fra innspilleren, ikke bare dette sporet. Spor fra dem du følger får en gul ring i kartet. I gå- og bilmodus går de foran andre spor, regnes ikke med i grensen på 15 spor og spilles hver gang du passerer. Spor fra dem du har dempet, skjules og spilles ikke av. Valgene lagres på kontoen (`follows`, `mutes` i `sp_users`) og kan angres i profilen. Arkivspor fra eiere som ikke har sagt ja til at navnet vises, regnes som én innspiller: «SoundPin-arkivet».

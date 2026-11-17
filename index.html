@@ -187,6 +187,52 @@
     position: fixed; left: 50%; top: 5.5rem; transform: translateX(-50%); z-index: 3000;
     background: #222; color: #fff; padding: .55rem .9rem; border-radius: 10px; font-size: .85rem; display: none; max-width: 90vw;
   }
+  #toast button { margin-left: .6rem; background: #fff; color: #222; padding: .2rem .7rem; font-size: .8rem; }
+
+  /* Nedtelling ved opptak: de siste 10 sekundene */
+  #cross.rec.warn .lbl { background: #b00; animation: blink .6s infinite; }
+  .rec .time.warn { color: #e01; font-weight: 600; }
+
+  /* Kodeord */
+  .code { margin-top: .6rem; background: #f4f4f6; border-radius: 12px; padding: .6rem .7rem; }
+  .code .row input { flex: 1; font: inherit; font-size: .95rem; padding: .5rem .6rem; border: 1px solid var(--line); border-radius: 10px; }
+  .code .ok { color: var(--verified); font-weight: 600; }
+  .reveal { margin-top: .4rem; font-size: .9rem; color: var(--ink); }
+  #car-code { display: none; margin-top: .6rem; }
+  body.stopped #car-code.has { display: flex; gap: .4rem; }
+  #car-code input { flex: 1; font: inherit; padding: .5rem .6rem; border-radius: 10px; border: 0; }
+
+  /* Tidtaking */
+  #run {
+    position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 9.2rem); z-index: 1600;
+    background: #111d; color: #fff; border-radius: 999px; padding: .35rem .5rem .35rem .9rem; display: none; align-items: center; gap: .6rem;
+    font-size: .9rem; font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 2px 10px #0004;
+  }
+  #run.show { display: flex; }
+  #run.over { background: #b00e; }
+  #run button { padding: .2rem .6rem; font-size: .75rem; background: #fff3; color: #fff; }
+  body.car #run { top: calc(env(safe-area-inset-top) + .8rem); font-size: 1.1rem; }
+  .res-row { display: flex; gap: .6rem; padding: .4rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  .res-row.mine { font-weight: 600; background: #fff6e0; }
+  .res-row .n { width: 1.8rem; color: var(--muted); }
+  .res-row .t { font-variant-numeric: tabular-nums; }
+
+  /* Introduksjon og bruksområder */
+  #intro { position: fixed; inset: 0; z-index: 3500; background: #000a; display: none; align-items: center; justify-content: center; padding: 1rem; }
+  #intro.show { display: flex; }
+  #intro .card { background: #fff; border-radius: 20px; max-width: 440px; width: 100%; padding: 1.4rem 1.3rem 1rem; box-shadow: 0 10px 40px #0005; }
+  #intro .big { font-size: 2.6rem; text-align: center; }
+  #intro h2 { text-align: center; margin: .3rem 0 .6rem; font-size: 1.25rem; }
+  #intro .txt { font-size: .95rem; line-height: 1.45; min-height: 8.5rem; }
+  #intro .txt ul { padding-left: 1.1rem; margin: .4rem 0; } #intro .txt li { margin: .25rem 0; }
+  #intro .dots { display: flex; justify-content: center; gap: .35rem; margin: .8rem 0; }
+  #intro .dots i { width: 7px; height: 7px; border-radius: 50%; background: #ddd; }
+  #intro .dots i.on { background: var(--accent); }
+  #intro .nav { display: flex; gap: .5rem; align-items: center; }
+  #intro .nav .sp { flex: 1; }
+  .uc { border: 1px solid var(--line); border-radius: 14px; padding: .7rem .8rem; margin-top: .6rem; }
+  .uc h3 { margin: 0 0 .25rem; font-size: 1rem; }
+  .uc p { margin: 0 0 .4rem; font-size: .88rem; color: var(--muted); line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -198,6 +244,7 @@
     <button id="walk" title="Spiller automatisk av spor foran deg mens du beveger deg">🚶 Gå</button>
     <button id="carbtn" title="Bilmodus">🚗</button>
     <button id="heat" title="Varmekart over hvor det finnes mange spor">🔥</button>
+    <button id="help-btn" title="Introduksjon og bruksområder">?</button>
     <button id="me-btn" title="Profil og innlogging">👤</button>
   </div>
   <div id="tags"></div>
@@ -216,6 +263,7 @@
     <div class="meta" id="p-meta"></div>
     <audio id="audio" controls preload="none"></audio>
     <div class="tts" id="p-tts" style="display:none"><button id="tts-btn">▶</button><span>Leses opp med telefonens stemme</span></div>
+    <div class="code" id="p-code" style="display:none"></div>
     <div class="actions" id="p-actions"></div>
     <div class="replies" id="p-replies" style="display:none"></div>
   </div>
@@ -227,13 +275,37 @@
   <div class="cover">
     <img id="car-img" alt="">
     <div style="flex:1; min-width:0">
-      <div class="now" id="car-now">Kjør trygt – spor spilles av automatisk</div>
+      <div class="now" id="car-now">Følg med der du ferdes – spor spilles av automatisk</div>
       <div id="car-desc"></div>
     </div>
   </div>
   <div class="next" id="car-next"></div>
+  <div id="car-code"><input type="text" id="car-code-in" placeholder="Svar / kodeord" autocomplete="off"><button id="car-code-go" class="primary">Sjekk</button></div>
 </div>
 <div id="zoom"><img id="zoom-img" alt=""></div>
+
+<!-- Tidtaking på en sekvens -->
+<div id="run"><span id="run-txt"></span><button id="run-x" title="Avbryt løpet">✕</button></div>
+
+<!-- Introduksjon -->
+<div id="intro"><div class="card">
+  <div class="big" id="in-ico"></div>
+  <h2 id="in-h"></h2>
+  <div class="txt" id="in-txt"></div>
+  <div class="dots" id="in-dots"></div>
+  <div class="nav">
+    <button id="in-skip">Hopp over</button>
+    <span class="sp"></span>
+    <button id="in-prev">←</button>
+    <button id="in-next" class="primary">Neste</button>
+  </div>
+  <label class="hint" style="display:flex; gap:.4rem; align-items:center; justify-content:center; margin-top:.7rem"><input type="checkbox" id="in-off"> Ikke vis dette når appen starter</label>
+</div></div>
+
+<!-- Hjelp: bruksområder -->
+<div class="sheet-bg" id="help-bg"><div class="sheet" id="help"></div></div>
+<!-- Resultater for en sekvens med tidtaking -->
+<div class="sheet-bg" id="res-bg"><div class="sheet" id="res"></div></div>
 
 <!-- Nytt spor -->
 <div class="sheet-bg" id="rec-bg"><div class="sheet">
@@ -309,6 +381,22 @@
     <select id="rec-seq"></select>
     <input type="text" id="rec-seq-name" placeholder="Navn på ny sekvens, f.eks. «Fister–Hjelmeland»" style="display:none; margin-top:.4rem">
     <div class="hint">Spor i en sekvens spilles bare når du beveger deg i samme retning som sekvensen går. Lag én sekvens for hver kjøreretning.</div>
+    <div id="rec-timed-box" style="display:none">
+      <label style="display:flex; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox" id="rec-timed"> ⏱ Med tidtaking</label>
+      <div class="hint">Klokka starter ved første spor og stopper ved siste. Alle sporene må passeres i rekkefølge, innenfor radiusen som er satt.</div>
+      <div id="rec-limit-box" style="display:none">
+        <label for="rec-tlimit">Tidsfrist i minutter (valgfritt)</label>
+        <input type="text" id="rec-tlimit" inputmode="numeric" placeholder="F.eks. 45 – tomt betyr ingen frist">
+      </div>
+    </div>
+
+    <label for="rec-code">Kodeord / riktig svar (valgfritt)</label>
+    <input type="text" id="rec-code" maxlength="100" placeholder="F.eks. 1814 – flere svar skilles med /">
+    <div class="hint">Still spørsmålet i opptaket. Lytteren må skrive riktig svar før svaret under vises og neste skjulte spor i sekvensen dukker opp. Store og små bokstaver teller ikke.</div>
+    <div id="rec-reveal-box" style="display:none">
+      <label for="rec-reveal">Dette vises og leses opp når svaret er riktig</label>
+      <input type="text" id="rec-reveal" maxlength="300" placeholder="F.eks. «Riktig! Neste post er ved den gamle kaia.»">
+    </div>
     </div>
   </details>
 
@@ -359,7 +447,7 @@ const HALF_LIFE_DAYS = 30;          // lyttinger mister halve vekten etter 30 da
 const NEW_BOOST_DAYS = 14;          // nye spor får ekstra synlighet i 14 dager
 const REPLY_BOOST_DAYS = 7;         // et svar gir sporet ny synlighet i 7 dager
 const HIDDEN_TAGS = ["test", "personal messsage", "lifelog", "hytte", "eiendom", "db"];
-const CATEGORIES = ["historie", "lokalhistorie", "natur", "steder", "stedsnavn", "krigen", "dialekt", "familie", "minner", "arkeologi", "kultur", "humor", "quiz"];
+const CATEGORIES = ["historie", "lokalhistorie", "natur", "steder", "stedsnavn", "krigen", "dialekt", "familie", "minner", "arkeologi", "kultur", "humor", "quiz", "seiling"];
 const ACCESS_NAMES = { map: "Vises i kartet", locked: "Vises, men må være der", hidden: "Skjult skattejakt" };
 const DAY = 864e5;
 // Jevn lydstyrke: hvert spor måles én gang (ca. LUFS), og nivået justeres ved avspilling
@@ -379,6 +467,7 @@ let tracks = [];                    // alle spor (arkiv + nye)
 let byId = new Map();
 let stats = {};                     // id → {s, c, r, t, boost}
 let heard = new Set(store.get("sp-heard", []));
+let solved = new Set(store.get("sp-solved", []));   // spor der du har gitt riktig kodeord
 let unlocks = store.get("sp-unlocks", {});   // spor-id → tidspunkt for opplåsing (også synket til Firestore)
 // Skjulte spor du fant i forrige versjon regnes som opplåst
 store.get("sp-revealed", []).forEach(id => unlocks[id] ||= Date.now()); store.set("sp-unlocks", unlocks); localStorage.removeItem("sp-revealed");
@@ -408,8 +497,9 @@ const freshLayer = L.layerGroup().addTo(map);   // nye spor grupperes ikke, så 
 let heatLayer = null;
 const audio = $("audio");
 
-function toast(msg, ms = 2800) {
+function toast(msg, ms = 2800, action = null) {
   const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  if (action) { const b = document.createElement("button"); b.textContent = action.label; b.onclick = () => { t.style.display = "none"; action.fn(); }; t.appendChild(b); }
   clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = "none", ms);
 }
 
@@ -478,7 +568,7 @@ function secretVisible(t) {
   // Neste spor i en skattejakt dukker opp (med lås) når du har hørt det forrige
   if (t.seqId && t.seqNo > 1) {
     const prev = tracks.find(x => x.seqId === t.seqId && x.seqNo === t.seqNo - 1);
-    if (prev && heard.has(prev.id)) return true;
+    if (prev && (prev.codeHash?.length ? solved.has(prev.id) : heard.has(prev.id))) return true;
   }
   return false;
 }
@@ -629,9 +719,10 @@ function closePlayer() {
   stopAll();
   $("player").classList.remove("show"); document.body.classList.remove("has-player");
   current = null;
-  $("car-now").textContent = "Kjør trygt – spor spilles av automatisk";
+  $("car-now").textContent = "Følg med der du ferdes – spor spilles av automatisk";
   $("car-desc").textContent = "";
   const img = $("car-img"); img.removeAttribute("src"); img.classList.remove("has");
+  $("car-code").classList.remove("has");
   $("zoom").classList.remove("show");
   if (carMode) $("car-next").textContent = nextAheadText();
 }
@@ -707,7 +798,7 @@ function play(t) {
   bits.push((isFollowed(t) ? "⭐ " : "") + esc(recName(t)));
   if (t.tags.length) bits.push(esc(t.tags.join(" · ")));
   if (me) bits.push(fmtDist(dist(me, t)) + " unna");
-  if (t.seqName) bits.push(`Sekvens «${esc(t.seqName)}» #${t.seqNo}`);
+  if (t.seqName) bits.push(`Sekvens «${esc(t.seqName)}» #${t.seqNo}${isTimed(t) ? ` av ${seqMeta[t.seqId].list.length} · ⏱ med tidtaking${seqMeta[t.seqId].limit ? ` (${seqMeta[t.seqId].limit} min)` : ""}` : ""}`);
   if (isLocked(t) && unlocks[t.id]) bits.push(`🔓 Låst opp ${new Date(unlocks[t.id]).toLocaleDateString("nb-NO")}`);
   bits.push(`Lyttescore ${Math.round(quality(t) * 100)} %`);
   const vis = t.visibility === "private" ? '<span class="badge grey">Bare meg</span>' : t.visibility === "friends" ? '<span class="badge grey">Venner</span>' : "";
@@ -727,13 +818,14 @@ function play(t) {
     lastProgress = Date.now();
     audio.play().catch(() => {});
   }
-  renderActions(t); renderReplies(t);
+  renderActions(t); renderReplies(t); renderCode(t);
   setCarNow(t);
   if (!walking) map.panTo([t.lat, t.lng]);
 }
 // Bilmodus: bildet byttes bare når et nytt spor starter. Beskrivelse og forstørring bare når bilen står stille (CSS: body.stopped).
 function setCarNow(t) {
   $("car-now").textContent = t.title || "Uten navn";
+  $("car-code").classList.toggle("has", !!(t.codeHash?.length && !solved.has(t.id))); $("car-code-in").value = "";
   $("car-desc").textContent = t.desc || "";
   const img = $("car-img");
   if (t.imageUrl) { img.src = t.imageUrl; img.classList.add("has"); } else { img.removeAttribute("src"); img.classList.remove("has"); }
@@ -751,7 +843,7 @@ function showLocked(t) {
   const img = $("p-img");
   if (t.imageUrl) { img.src = t.imageUrl; img.style.display = "block"; } else { img.removeAttribute("src"); img.style.display = "none"; }
   audio.style.display = "none"; audio.removeAttribute("src"); $("p-tts").style.display = "none";
-  $("p-replies").style.display = "none";
+  $("p-replies").style.display = "none"; $("p-code").style.display = "none";
   const box = $("p-actions"); box.innerHTML = "";
   const b = document.createElement("button"); b.textContent = "🧭 Vis i kartet"; b.onclick = () => map.setView([t.lat, t.lng], 17); box.appendChild(b);
   if (isVerifier()) {   // admin/verifikator kan høre innholdet uten å låse det opp
@@ -782,10 +874,9 @@ function renderActions(t) {
     add(isFollowed(t) ? "⭐ Følger" : "☆ Følg", () => { toggleFollow(t); renderActions(t); }, isFollowed(t) ? "on" : "");
     add("🔕 Demp", () => toggleMute(t));
   }
-  add("🔗 Del", () => {
-    const url = `${location.origin}${location.pathname}?pin=${encodeURIComponent(t.id)}`;
-    (navigator.share ? navigator.share({ title: t.title || "SoundPin", url }) : navigator.clipboard.writeText(url).then(() => toast("Lenken er kopiert"))).catch(() => {});
-  });
+  if (isTimed(t)) add("🏁 Resultater", () => openResults(t.seqId));
+  add("📣 Utfordre", () => challenge(t));
+  add("🔗 Del", () => shareLink(t, t.title || "SoundPin"));
   if (!t.legacy) add("⚑ Rapporter", () => report(t));
   if (fb && user && !t.legacy && isVerifier()) {
     add(t.label === "verified" ? "Fjern verifisering" : "✓ Verifiser", () => setLabel(t, t.label === "verified" ? "local" : "verified"));
@@ -796,14 +887,72 @@ function renderActions(t) {
     review(t, { visibility: "friends", review: "rejected", reviewNote: note.slice(0, 300) });
   });
   if (fb && user && t.legacy && isAdmin()) add("🧹 Rydd", () => { $("close").click(); openArchive({ only: t.id }); });
-  if (fb && user && !t.legacy && (t.creator === user.uid || isAdmin())) add("🗑 Slett", () => removeTrack(t));
+  if (fb && user && isAdmin() && !isOwn(t)) add("🗄 Arkiver", () => archiveTrack(t));
+  if (fb && user && !t.legacy && isOwn(t)) add("🗑 Slett", () => removeTrack(t));
+}
+// ================= Kodeord =================
+// Svaret lagres som SHA-256 av normalisert tekst, så det ikke kan leses rett ut av dataene. Flere riktige svar skilles med «/».
+const normCode = s => String(s || "").normalize("NFC").toLowerCase().replace(/[\s.,!?;:'"«»()\-]/g, "");
+async function sha(s) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+const codeHashes = async raw => [...new Set(await Promise.all(raw.split("/").map(normCode).filter(Boolean).map(sha)))];
+async function checkCode(t, answer) {
+  if (!t.codeHash?.length) return null;
+  const ok = t.codeHash.includes(await sha(normCode(answer)));
+  if (!ok) { if (navigator.vibrate) navigator.vibrate(120); return false; }
+  solved.add(t.id); store.set("sp-solved", [...solved]);
+  if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+  const next = t.seqId && tracks.find(x => x.seqId === t.seqId && x.seqNo === t.seqNo + 1 && accessOf(x) === "hidden" && !isUnlocked(x));
+  toast(next ? "✅ Riktig! Neste post har dukket opp i kartet." : "✅ Riktig!", 4000);
+  if (t.codeReveal && !(audio && !audio.paused && !audio.ended)) speak({ id: "_preview", text: t.codeReveal });
+  render(); return true;
+}
+function renderCode(t) {
+  const box = $("p-code");
+  if (!t.codeHash?.length) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  if (solved.has(t.id)) {
+    box.innerHTML = `<div class="ok">✅ Du har svart riktig.</div>${t.codeReveal ? `<div class="reveal">${esc(t.codeReveal)}</div>` : ""}`;
+    return;
+  }
+  box.innerHTML = `<div class="hint" style="margin:0 0 .35rem">Svar eller kodeord</div>
+    <div class="row"><input type="text" id="code-in" autocomplete="off" placeholder="Skriv svaret ditt"><button class="primary" id="code-go">Sjekk</button></div>
+    <div class="err" id="code-err"></div>`;
+  const go = async () => {
+    const r = await checkCode(t, $("code-in").value);
+    if (r) renderCode(t); else { $("code-err").textContent = "Ikke riktig – prøv igjen."; $("code-in").select(); }
+  };
+  $("code-go").onclick = go;
+  $("code-in").onkeydown = e => { if (e.key === "Enter") go(); };
+}
+$("car-code-go").onclick = async () => {
+  if (!current) return;
+  const r = await checkCode(current, $("car-code-in").value);
+  if (r) $("car-code").classList.remove("has"); else { $("car-code-in").value = ""; $("car-code-in").placeholder = "Ikke riktig – prøv igjen"; }
+};
+// Del en lenke til sporet via telefonens delingsmeny (eller kopier den)
+function shareLink(t, text) {
+  const url = `${location.origin}${location.pathname}?pin=${encodeURIComponent(t.id)}`;
+  if (navigator.share) navigator.share({ title: t.title || "SoundPin", text, url }).catch(() => {});
+  else navigator.clipboard.writeText(`${text}\n${url}`).then(() => toast("Teksten og lenken er kopiert – lim den inn i en melding.", 4000)).catch(() => {});
+}
+// «Utfordre en venn»: ferdig tekst som passer sporet
+function challenge(t) {
+  const who = (isReal() && (profile?.name || user.displayName)) || "En venn";
+  const title = t.title || "et spor";
+  let text;
+  if (isTimed(t)) text = `${who} utfordrer deg: klarer du «${seqMeta[t.seqId].name}» på SoundPin? Tiden går fra første post til siste.`;
+  else if (t.codeHash?.length) text = `${who} utfordrer deg: finner du svaret på «${title}» på SoundPin?`;
+  else if (t.tags.includes("dialekt")) text = `${who} utfordrer deg til å fortelle en artig historie på din dialekt der du bor. Hør «${title}» på SoundPin og legg igjen din egen!`;
+  else if (t.tags.includes("minner")) text = `${who} utfordrer deg til å fortelle ditt minne fra dette stedet. Hør «${title}» på SoundPin og trykk «💬 Svar».`;
+  else text = `${who} utfordrer deg: hør «${title}» på SoundPin og fortell din egen historie fra stedet med «💬 Svar».`;
+  shareLink(t, text);
 }
 function renderReplies(t) {
   const reps = tracks.filter(x => x.replyTo === t.id && !isMuted(x)).sort((a, b) => a.createdAt - b.createdAt);
   const box = $("p-replies");
   if (!reps.length) { box.style.display = "none"; return; }
   box.style.display = "block";
-  box.innerHTML = `<h3>Svar (${reps.length})</h3>`;
+  box.innerHTML = `<h3>${t.tags.includes("minner") ? "Minner fra dette stedet" : "Svar"} (${reps.length})</h3>`;
   reps.forEach(r => {
     const row = document.createElement("div"); row.className = "reply";
     const here = r.wasHere ? ` <span class="badge grey" title="Låste opp sporet på stedet">📍 var her ${new Date(r.wasHere).toLocaleDateString("nb-NO")}</span>` : "";
@@ -827,7 +976,7 @@ const scaledRadius = t => trackRadius(t) * (RADIUS_SCALE[radiusScale] || 1);
 // Åpne spor starter litt før du er fremme; jo raskere du beveger deg, desto tidligere
 const reach = t => Math.max(scaledRadius(t), speed * LEAD_SECONDS);
 // Stedslåste spor: du må faktisk være innenfor radiusen sporet er laget med
-const lockReach = t => trackRadius(t) + Math.min(accuracy || 0, MAX_ACCURACY_BONUS) + Math.min(speed, 40) * LOCK_LEAD_SECONDS;
+const lockReach = t => isTimed(t) ? passReach(t) : trackRadius(t) + Math.min(accuracy || 0, MAX_ACCURACY_BONUS) + Math.min(speed, 40) * LOCK_LEAD_SECONDS;
 const rearmAt = t => reach(t) + Math.max(30, trackRadius(t) * 0.5);   // hysterese
 
 function shouldTrigger(t, d) {
@@ -850,6 +999,7 @@ function unlock(t) {
 }
 function checkNearby() {
   if (!walking || !me) return;
+  checkRun();
   // Hysterese: spor som er spilt kan utløses igjen først når du har vært et stykke utenfor
   for (const [id, v] of armed) { const t = byId.get(id); if (v === false && (!t || dist(me, t) > rearmAt(t))) armed.delete(id); }
   // Stedslåste og skjulte spor låses opp når du er innenfor radiusen
@@ -929,6 +1079,7 @@ $("car-off").onclick = () => { carManual = true; setCar(false); };
 $("heat").onclick = () => { heatOn = !heatOn; $("heat").classList.toggle("on", heatOn); render(); };
 
 // ================= Sekvenser =================
+let seqMeta = {};                   // sekvens-id → { name, timed, limit (min), list (sortert) }
 function computeSequences() {
   const groups = {};
   tracks.forEach(t => { t.seqDir = null; if (t.seqId) (groups[t.seqId] ||= []).push(t); });
@@ -937,6 +1088,82 @@ function computeSequences() {
     if (g.length < 2) return;
     g.forEach((t, i) => { t.seqDir = i < g.length - 1 ? bearing(t, g[i + 1]) : bearing(g[i - 1], t); });
   });
+  seqMeta = {};
+  Object.entries(groups).forEach(([id, g]) => {
+    const first = g.find(t => t.seqTimed) || g[0];
+    seqMeta[id] = { id, name: first.seqName || "Sekvens", timed: !!g.find(t => t.seqTimed), limit: first.seqLimit || null, list: g.filter(t => !t.archived) };
+  });
+}
+const isTimed = t => !!(t.seqId && seqMeta[t.seqId]?.timed);
+
+// ================= Tidtaking =================
+// Klokka starter når du forlater første spor og stopper ved siste. Sporene må passeres i rekkefølge,
+// innenfor radiusen som er satt (ingen ekstra rekkevidde for fart – det skal være litt utfordring).
+let run = store.get("sp-run", null);   // { seq, name, start, next, n, limit }
+const passReach = t => trackRadius(t) + Math.min(accuracy || 0, 10);
+const fmtDur = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? `${h}:${String(m).padStart(2, "0")}` : `${m}`) + `:${String(x).padStart(2, "0")}`; };
+function saveRun() { store.set("sp-run", run); renderRun(); }
+function renderRun() {
+  const box = $("run");
+  if (!run) { box.classList.remove("show", "over"); return; }
+  box.classList.add("show");
+  if (!run.start) { $("run-txt").textContent = `⏱ ${run.name} · klar ved start`; box.classList.remove("over"); return; }
+  const el = Date.now() - run.start;
+  const over = run.limit && el > run.limit * 60000;
+  const left = run.limit ? (over ? " · over tiden" : ` · ${fmtDur(run.limit * 60000 - el)} igjen`) : "";
+  $("run-txt").textContent = `⏱ ${fmtDur(el)} · post ${run.next - 1} av ${run.n}${left}`;
+  box.classList.toggle("over", !!over);
+}
+setInterval(() => run && renderRun(), 1000);
+$("run-x").onclick = () => { if (confirm("Avbryte løpet? Tiden lagres ikke.")) { run = null; saveRun(); } };
+function checkRun() {
+  if (!me) return;
+  for (const m of Object.values(seqMeta)) {
+    if (!m.timed || m.list.length < 2) continue;
+    const at = n => m.list[n - 1], inside = t => segDist(prevMe, me, t) <= passReach(t);
+    // Start: du er innenfor første spor. Tiden regnes fra siste gang du var der, så den starter når du drar fra start.
+    if (inside(at(1)) && (!run || run.seq === m.id && run.next <= 2 || !run.start)) {
+      const fresh = !run || run.seq !== m.id || !run.start;
+      run = { seq: m.id, name: m.name, start: Date.now(), next: 2, n: m.list.length, limit: m.limit };
+      saveRun();
+      if (fresh) { toast(`⏱ ${m.name}: tidtakingen starter når du forlater start.${m.limit ? ` Frist: ${m.limit} min.` : ""}`, 5000); if (navigator.vibrate) navigator.vibrate([60, 40, 60]); }
+      continue;
+    }
+    if (!run || run.seq !== m.id || !run.start) continue;
+    const t = at(run.next);
+    if (t && inside(t)) {
+      if (run.next === run.n) { finishRun(m); return; }
+      run.next++; saveRun();
+      toast(`✔ Post ${run.next - 1} av ${run.n} · ${fmtDur(Date.now() - run.start)}`, 3000);
+      if (navigator.vibrate) navigator.vibrate(60);
+    }
+  }
+}
+async function finishRun(m) {
+  const ms = Date.now() - run.start, over = !!(run.limit && ms > run.limit * 60000);
+  const r = { seq: m.id, ms, over, limit: run.limit || null, at: Date.now(), uid: user?.uid || null, name: profile?.name || (isReal() ? (user.displayName || "") : "") || "Anonym" };
+  run = null; saveRun();
+  if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 200]);
+  toast(`🏁 I mål! ${m.name}: ${fmtDur(ms)}${over ? " (over tiden)" : ""}`, 8000, { label: "Resultater", fn: () => openResults(m.id) });
+  if (fb && user) { try { await fb.addDoc(fb.collection(fb.db, "sp_results"), r); } catch (e) { console.warn("Resultat ikke lagret", e); toast("Tiden kunne ikke lagres: " + (e.code || e.message), 6000); } }
+}
+async function openResults(seqId) {
+  const m = seqMeta[seqId], box = $("res");
+  box.innerHTML = `<div class="row"><h2 style="flex:1">🏁 ${esc(m?.name || "Resultater")}</h2><button id="res-x">✕</button></div>
+    <p class="hint">${m ? `${m.list.length} poster` : ""}${m?.limit ? ` · frist ${m.limit} min` : ""} · beste tid per person</p><div id="res-list" class="hint">Laster …</div>`;
+  $("res-x").onclick = () => $("res-bg").classList.remove("show");
+  $("res-bg").classList.add("show");
+  if (!fb) { $("res-list").textContent = "Resultater krever innlogging."; return; }
+  try {
+    const all = (await fb.getDocs(fb.query(fb.collection(fb.db, "sp_results"), fb.where("seq", "==", seqId)))).docs.map(d => d.data());
+    const best = {};
+    all.forEach(r => { const k = r.uid || r.name; if (!best[k] || (best[k].over && !r.over) || (best[k].over === r.over && r.ms < best[k].ms)) best[k] = r; });
+    const list = Object.values(best).sort((a, b) => (a.over - b.over) || (a.ms - b.ms));
+    const el = $("res-list"); el.className = "";
+    if (!list.length) { el.innerHTML = '<p class="hint">Ingen har fullført ennå. Bli den første!</p>'; return; }
+    el.innerHTML = list.slice(0, 50).map((r, i) => `<div class="res-row ${user && r.uid === user.uid ? "mine" : ""}"><span class="n">${i + 1}.</span><span style="flex:1">${esc(r.name)}</span><span class="t">${fmtDur(r.ms)}${r.over ? " ⚠" : ""}</span><span class="hint">${new Date(r.at).toLocaleDateString("nb-NO")}</span></div>`).join("")
+      + (list.some(r => r.over) ? '<div class="hint" style="margin-top:.4rem">⚠ = fullført etter fristen</div>' : "");
+  } catch (e) { $("res-list").textContent = "Kunne ikke laste resultater: " + (e.code || e.message) + ". Er de nye sikkerhetsreglene publisert?"; }
 }
 
 // ================= Data =================
@@ -1330,12 +1557,22 @@ async function renderAdmin() {
   box.innerHTML = `<label>Administrasjon</label>
     <div class="row"><button id="ad-queue" style="flex:1">✅ Godkjenningskø (${pending})</button>${isAdmin() ? '<button id="ad-archive" style="flex:1">🧹 Rydd arkivet</button>' : ""}</div>
     ${isAdmin() ? `<div class="row" style="margin-top:.4rem"><button id="ad-lost" style="flex:1">🧩 Tapte spor (${lostRaw.filter(x => !archiveMeta[x.id]?.status).length})</button><button id="ad-loud" style="flex:1">🔊 Mål lydstyrke</button></div>` : ""}
+    ${isAdmin() ? `<label>Arkiverte nye spor</label><div id="ad-arch"></div>` : ""}
     ${isAdmin() ? `<label>Brukere og roller</label><div id="ad-users" class="hint">Laster …</div><label>Rapporterte spor</label><div id="ad-reports" class="hint">Laster …</div>` : ""}`;
   $("ad-queue").onclick = () => { $("prof-bg").classList.remove("show"); openQueue(); };
   if (!isAdmin()) return;
   $("ad-archive").onclick = () => { $("prof-bg").classList.remove("show"); openArchive(); };
   $("ad-lost").onclick = () => { $("prof-bg").classList.remove("show"); openLost(); };
   $("ad-loud").onclick = () => { $("prof-bg").classList.remove("show"); openLoud(); };
+  // Nye spor som er arkivert fra kartet (arkivspor fra den gamle appen finnes under «Rydd arkivet» → Arkivert)
+  const arch = tracks.filter(t => !t.legacy && t.archived), ab = $("ad-arch");
+  if (!arch.length) ab.innerHTML = '<div class="hint">Ingen.</div>';
+  arch.forEach(t => {
+    const r = document.createElement("div"); r.className = "list-row";
+    r.innerHTML = `<span>${esc(t.title || "Uten navn")} <span class="hint">av ${esc(t.creatorName || "ukjent")}</span></span><button>Gjenopprett</button>`;
+    r.querySelector("button").onclick = async () => { try { await setArchived(t, false); r.remove(); toast("Sporet er tilbake."); } catch (e) { toast("Feil: " + (e.code || e.message)); } };
+    ab.appendChild(r);
+  });
   try {
     const us = (await fb.getDocs(fb.collection(fb.db, "sp_users"))).docs;
     const ub = $("ad-users"); ub.innerHTML = ""; ub.className = "";
@@ -1753,6 +1990,29 @@ async function setLabel(t, label) {
   try { await fb.updateDoc(fb.doc(fb.db, "sp_tracks", t.id), { label }); t.label = label; play(t); render(); }
   catch (e) { toast("Feil: " + (e.code || e.message)); }
 }
+// Admin: arkiver rett fra kartet. Sporet skjules for alle, men slettes ikke (som «Arkiver» i ryddeverktøyet).
+async function setArchived(t, on) {
+  if (t.legacy) {
+    const prev = archiveMeta[t.id]?.status || null;
+    const status = on ? "archived" : (archiveMeta[t.id]?.prevStatus ?? null);
+    const data = { status, prevStatus: on ? prev : null, by: user.uid, at: Date.now() };
+    await fb.setDoc(fb.doc(fb.db, "sp_archive", t.id), data, { merge: true });
+    archiveMeta[t.id] = { ...archiveMeta[t.id], ...data };
+    setTracks(legacyAll().concat(tracks.filter(x => !x.legacy)));
+  } else {
+    await fb.updateDoc(fb.doc(fb.db, "sp_tracks", t.id), { archived: on, reviewedBy: user.uid, reviewedAt: Date.now() });
+    t.archived = on; setTracks([...tracks]);
+  }
+}
+async function archiveTrack(t) {
+  if (!confirm(`Arkivere «${t.title || "sporet"}»? Det skjules for alle, men slettes ikke.`)) return;
+  try {
+    await setArchived(t, true); closePlayer();
+    toast(`«${t.title || "Sporet"}» er arkivert.`, 7000, { label: "Angre", fn: async () => {
+      try { await setArchived(byId.get(t.id) || t, false); toast("Sporet er tilbake."); } catch (e) { toast("Kunne ikke angre: " + (e.code || e.message)); }
+    } });
+  } catch (e) { toast("Kunne ikke arkivere: " + (e.code || e.message) + ". Er de nye sikkerhetsreglene publisert?", 6000); }
+}
 async function removeTrack(t) {
   if (!confirm("Slette sporet?")) return;
   try { await fb.deleteDoc(fb.doc(fb.db, "sp_tracks", t.id)); $("close").click(); setTracks(tracks.filter(x => x.id !== t.id)); toast("Sporet er slettet."); }
@@ -1764,6 +2024,8 @@ const R = { kind: "audio", pos: "me", vis: "friends", access: "map", cats: new S
 const maxRadius = () => canPublic() ? MAX_RADIUS : MAX_RADIUS_USER;
 const maxSeconds = () => canPublic() ? MAX_SECONDS_AUTH : MAX_SECONDS_USER;
 function seg(id, key, val) { $(id).querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset[key] === val)); }
+const WARN_SECONDS = 10;            // nedtellingen blir rød og telefonen vibrerer de siste 10 sekundene
+function warnOnce(o, left) { if (left <= WARN_SECONDS && !o.warned) { o.warned = true; if (navigator.vibrate) navigator.vibrate([80, 60, 80]); } }
 function fmtTime(s) { s = Math.floor(s); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
 
 function canRecord() {
@@ -1776,12 +2038,13 @@ function openRecorder({ replyTo = null, recorded = null } = {}) {
   Object.assign(R, { kind: "audio", blob: null, mime: "", duration: 0, replyTo, pos: recorded ? "map" : (me ? "me" : "map"), vis: canPublic() ? "public" : "friends", access: "map", cats: new Set() });
   if (!recorded) R.crossPos = null;
   $("rec-title").textContent = replyTo ? `Svar på «${replyTo.title || "spor"}»` : "Nytt lydspor";
-  ["rec-name", "rec-desc", "rec-tags", "rec-textarea", "rec-seq-name"].forEach(id => $(id).value = "");
+  ["rec-name", "rec-desc", "rec-tags", "rec-textarea", "rec-seq-name", "rec-code", "rec-reveal", "rec-tlimit"].forEach(id => $(id).value = "");
+  $("rec-timed").checked = false; $("rec-timed-box").style.display = "none"; $("rec-limit-box").style.display = "none"; $("rec-reveal-box").style.display = "none";
   if (replyTo) $("rec-name").value = "Svar: " + (replyTo.title || "");
   $("rec-img").value = ""; $("rec-img-prev").style.display = "none"; $("rec-img-txt").style.display = ""; $("rec-more").open = false;
   $("rec-rights").checked = false; $("rec-tags").style.display = "none";
   $("rec-radius").max = maxRadius(); $("rec-radius").value = DEFAULT_RADIUS;
-  $("rec-preview").style.display = "none"; $("rec-time").textContent = "0:00"; $("rec-err").textContent = "";
+  $("rec-preview").style.display = "none"; $("rec-time").textContent = fmtTime(maxSeconds()); $("rec-time").classList.remove("warn"); $("rec-err").textContent = "";
   $("rec-limit").textContent = `Maks ${fmtTime(maxSeconds())}. Støy dempes automatisk av nettleseren.`;
   $("rec-adv-place").style.display = replyTo ? "none" : "";
   $("rec-cat-box").style.display = replyTo ? "none" : "";
@@ -1794,7 +2057,7 @@ function openRecorder({ replyTo = null, recorded = null } = {}) {
   if (recorded) {
     Object.assign(R, recorded);
     $("rec-preview").src = URL.createObjectURL(R.blob); $("rec-preview").style.display = "block";
-    $("rec-time").textContent = fmtTime(R.duration); $("rec-start").textContent = "↺ Ta opp på nytt";
+    $("rec-time").textContent = `Tatt opp ${fmtTime(R.duration)}`; $("rec-start").textContent = "↺ Ta opp på nytt";
   } else $("rec-start").textContent = "● Ta opp";
   $("rec-bg").classList.add("show");
   if (recorded) setTimeout(() => $("rec-name").focus(), 300);
@@ -1830,8 +2093,8 @@ function setRadius(r) {
   updateSummary();
 }
 function updateSummary() {
-  const seqTxt = $("rec-seq").value === "new" ? "ny sekvens" : $("rec-seq").value ? "i sekvens" : "ingen sekvens";
-  $("rec-sum").textContent = R.replyTo ? "" : ` · Radius ${$("rec-radius").value} m · ${ACCESS_NAMES[R.access]} · ${seqTxt}`;
+  const seqTxt = $("rec-seq").value === "new" ? ($("rec-timed").checked ? "ny sekvens med tidtaking" : "ny sekvens") : $("rec-seq").value ? "i sekvens" : "ingen sekvens";
+  $("rec-sum").textContent = R.replyTo ? "" : ` · Radius ${$("rec-radius").value} m · ${ACCESS_NAMES[R.access]} · ${seqTxt}${$("rec-code").value.trim() ? " · kodeord" : ""}`;
 }
 function renderCats() {
   const box = $("rec-cats"); box.innerHTML = "";
@@ -1853,7 +2116,14 @@ $("rec-img").onchange = () => {
 };
 $("rec-pos").onclick = e => e.target.dataset.p && setPos(e.target.dataset.p);
 $("rec-vis").onclick = e => e.target.dataset.v && setVis(e.target.dataset.v);
-$("rec-seq").onchange = () => { $("rec-seq-name").style.display = $("rec-seq").value === "new" ? "" : "none"; updateSummary(); };
+$("rec-seq").onchange = () => {
+  const isNew = $("rec-seq").value === "new";
+  $("rec-seq-name").style.display = isNew ? "" : "none";
+  $("rec-timed-box").style.display = isNew ? "" : "none";   // tidtaking velges når sekvensen lages
+  updateSummary();
+};
+$("rec-timed").onchange = () => { $("rec-limit-box").style.display = $("rec-timed").checked ? "" : "none"; updateSummary(); };
+$("rec-code").oninput = () => { $("rec-reveal-box").style.display = $("rec-code").value.trim() ? "" : "none"; updateSummary(); };
 $("rec-access").onclick = e => e.target.dataset.a && setAccess(e.target.dataset.a);
 $("rec-radius").oninput = () => setRadius(+$("rec-radius").value);
 $("rec-textarea").oninput = () => {
@@ -1875,18 +2145,22 @@ async function startRecording() {
     rec.ondataavailable = e => e.data.size && chunks.push(e.data);
     rec.onstop = () => {
       stream.getTracks().forEach(t => t.stop());
-      clearInterval(R.timer);
+      clearInterval(R.timer); $("rec-time").classList.remove("warn");
       R.mime = (rec.mimeType || mime || "audio/webm").split(";")[0];
       R.blob = new Blob(chunks, { type: R.mime });
       R.duration = Math.min(maxSeconds(), (Date.now() - t0) / 1000);
       $("rec-preview").src = URL.createObjectURL(R.blob); $("rec-preview").style.display = "block";
       $("rec-dot").classList.remove("live"); $("rec-start").textContent = "↺ Ta opp på nytt"; R.recorder = null;
+      $("rec-time").textContent = `Tatt opp ${fmtTime(R.duration)}`;
     };
-    rec.start(250); R.recorder = rec;
+    rec.start(250); R.recorder = rec; R.warned = false;
+    $("rec-time").textContent = `${fmtTime(maxSeconds())} igjen`;
     $("rec-dot").classList.add("live"); $("rec-start").textContent = "■ Stopp"; $("rec-preview").style.display = "none";
     R.timer = setInterval(() => {
-      const s = (Date.now() - t0) / 1000;
-      $("rec-time").textContent = `${fmtTime(s)} / ${fmtTime(maxSeconds())}`;
+      const s = (Date.now() - t0) / 1000, left = Math.max(0, maxSeconds() - s);
+      $("rec-time").textContent = `${fmtTime(Math.ceil(left))} igjen`;
+      $("rec-time").classList.toggle("warn", left <= WARN_SECONDS);
+      warnOnce(R, left);
       if (s >= maxSeconds()) stopRecording();
     }, 200);
   } catch (e) { $("rec-err").textContent = "Fikk ikke tilgang til mikrofonen: " + e.message; }
@@ -1932,6 +2206,14 @@ $("rec-save").onclick = async () => {
       seqId = sv; seqName = same[0]?.seqName || "Sekvens"; seqNo = Math.max(0, ...same.map(t => t.seqNo)) + 1;
     }
   }
+  let seqTimed = false, seqLimit = null;
+  if (sv === "new" && $("rec-timed").checked) {
+    seqTimed = true;
+    const lim = $("rec-tlimit").value.trim();
+    if (lim) { seqLimit = Math.round(parseFloat(lim.replace(",", "."))); if (!(seqLimit > 0 && seqLimit <= 24 * 60)) { err.textContent = "Tidsfristen må være et antall minutter (1–1440), eller tom."; return; } }
+  }
+  const codeRaw = R.replyTo ? "" : $("rec-code").value.trim();
+  const codeHash = codeRaw ? await codeHashes(codeRaw) : null;
   const btn = $("rec-save"); btn.disabled = true; btn.textContent = "Laster opp …";
   try {
     const id = fb.doc(fb.collection(fb.db, "sp_tracks")).id;
@@ -1961,7 +2243,8 @@ $("rec-save").onclick = async () => {
       review: R.vis === "public" && !canPublic() ? "pending" : null,
       radius: R.replyTo ? null : Math.min(maxRadius(), clampRadius(+$("rec-radius").value)),
       access: R.replyTo ? "map" : R.access, hidden: !R.replyTo && R.access === "hidden",
-      seqId, seqName, seqNo,
+      seqId, seqName, seqNo, seqTimed, seqLimit,
+      codeHash, codeReveal: codeHash ? ($("rec-reveal").value.trim() || null) : null,
       replyTo: R.replyTo ? R.replyTo.id : null, wasHere: R.replyTo && unlocks[R.replyTo.id] ? unlocks[R.replyTo.id] : null,
       label: "local", loud, createdAt: Date.now()
     };
@@ -1993,21 +2276,23 @@ async function holdStart() {
   H.rec.ondataavailable = e => e.data.size && H.chunks.push(e.data);
   H.rec.onstop = holdDone;
   H.crossPos = map.getCenter();
-  H.rec.start(250); H.t0 = Date.now();
+  H.rec.start(250); H.t0 = Date.now(); H.warned = false;
   cross.classList.add("rec"); if (navigator.vibrate) navigator.vibrate(30);
   H.tick = setInterval(() => {
-    const s = (Date.now() - H.t0) / 1000;
-    crossLabel(`● ${fmtTime(s)} / ${fmtTime(maxSeconds())}`);
+    const s = (Date.now() - H.t0) / 1000, left = Math.max(0, maxSeconds() - s);
+    crossLabel(`● ${fmtTime(Math.ceil(left))} igjen`);
+    cross.classList.toggle("warn", left <= WARN_SECONDS);
+    warnOnce(H, left);
     if (s >= maxSeconds()) holdStop();
   }, 200);
-  crossLabel(`● 0:00 / ${fmtTime(maxSeconds())}`);
+  crossLabel(`● ${fmtTime(maxSeconds())} igjen`);
 }
 function holdStop() {
   H.released = true;
   if (H.rec && H.rec.state !== "inactive") H.rec.stop();
 }
 function holdDone() {
-  clearInterval(H.tick); cross.classList.remove("rec"); crossLabel("Hold for å ta opp");
+  clearInterval(H.tick); cross.classList.remove("rec", "warn"); crossLabel("Hold for å ta opp");
   H.stream?.getTracks().forEach(t => t.stop());
   const dur = (Date.now() - H.t0) / 1000;
   const mime = (H.rec.mimeType || H.mime || "audio/webm").split(";")[0];
@@ -2031,9 +2316,88 @@ cross.addEventListener("pointerup", release);
 cross.addEventListener("pointercancel", () => { if (H.timer) { clearTimeout(H.timer); H.timer = null; } holdStop(); });
 cross.addEventListener("contextmenu", e => e.preventDefault());
 
+// ================= Introduksjon =================
+// Bygger på bruksveiledningen: oversikt, lytte, bilmodus, lage og dele. Vises ved oppstart, med «Hopp over».
+const INTRO = [
+  { ico: "📍", h: "Velkommen til SoundPin", txt: `<p>Historier om stedet der du er – fortalt med ekte stemmer av folk som kjenner det.</p><p>Spor ligger som prikker i kartet. Du kan lytte, legge igjen dine egne historier og dele dem med venner eller alle.</p>` },
+  { ico: "🎧", h: "Lytte", txt: `<ul><li>Trykk på en prikk i kartet for å høre sporet.</li><li>Trykk <b>🚶 Gå</b>, så spilles sporene av automatisk når du nærmer deg dem.</li><li>🔒 betyr at du må være på stedet én gang for å låse opp sporet.</li><li>Kategoriene øverst og 👤-lista filtrerer kartet.</li></ul>` },
+  { ico: "🚗", h: "I bil og båt", txt: `<ul><li>Når du kjører, bytter appen til en enkel visning med stort bilde og tittel.</li><li>Bare korte spor spilles, og mer tekst vises først når du står stille.</li><li>Ha blikket der du ferdes – sporene kommer av seg selv.</li></ul>` },
+  { ico: "🎙", h: "Lage spor", txt: `<ul><li><b>Hold inne krysset</b> midt i kartet og snakk. Slipp for å lagre. Nedtellingen viser hvor lang tid du har igjen.</li><li><b>Trykk</b> på krysset for flere valg: skrive tekst, bilde, radius, skjult spor, sekvens, kodeord og tidtaking.</li><li>Du må logge inn (👤) for å lage spor.</li></ul>` },
+  { ico: "👥", h: "Dele og følge", txt: `<ul><li>Velg hvem som kan høre sporet: <b>Bare meg</b>, <b>Venner</b> eller <b>Alle</b>.</li><li>Inviter venner med lenken i profilen, og bruk <b>📣 Utfordre</b> for å få andre til å fortelle sin historie.</li><li><b>☆ Følg</b> innspillere du liker, og <b>🔕 Demp</b> dem du ikke vil høre.</li></ul>` },
+  { ico: "💡", h: "Hva kan du bruke det til?", txt: `<p>Quiz på vei til hytta, en hilsen der dere møttes, rebusløp, regatta, dialektreise og mye mer.</p><p>Trykk <b>?</b> øverst når som helst for å se bruksområdene og denne introduksjonen igjen.</p>`, last: true }
+];
+let introAt = 0;
+function showIntro(i = 0) {
+  introAt = Math.max(0, Math.min(INTRO.length - 1, i));
+  const s = INTRO[introAt];
+  $("in-ico").textContent = s.ico; $("in-h").textContent = s.h; $("in-txt").innerHTML = s.txt;
+  $("in-dots").innerHTML = INTRO.map((_, k) => `<i class="${k === introAt ? "on" : ""}"></i>`).join("");
+  $("in-prev").style.visibility = introAt ? "" : "hidden";
+  $("in-next").textContent = s.last ? "Se bruksområder" : "Neste";
+  $("in-skip").textContent = s.last ? "Start" : "Hopp over";
+  $("in-off").checked = !!store.get("sp-intro-off", false);
+  $("intro").classList.add("show");
+}
+function closeIntro() { store.set("sp-intro-off", $("in-off").checked); $("intro").classList.remove("show"); }
+$("in-skip").onclick = closeIntro;
+$("in-prev").onclick = () => showIntro(introAt - 1);
+$("in-next").onclick = () => { if (INTRO[introAt].last) { closeIntro(); openHelp(); } else showIntro(introAt + 1); };
+// Sveip mellom sidene
+let inX = null;
+$("intro").addEventListener("touchstart", e => inX = e.touches[0].clientX, { passive: true });
+$("intro").addEventListener("touchend", e => { if (inX == null) return; const dx = e.changedTouches[0].clientX - inX; inX = null; if (Math.abs(dx) > 50) showIntro(introAt + (dx < 0 ? 1 : -1)); });
+
+// ================= Bruksområder =================
+// Eksempler som bruker funksjonene appen allerede har. «Prøv» åpner skjemaet med riktige valg.
+const USE_CASES = [
+  { ico: "🚗", h: "Spørrekonkurranse på vei til hytta", txt: "Lag en quiz langs veien som familien hører i bilen. Still spørsmålet i ett spor og gi svaret i neste – eller bruk kodeord. Del med gjestene, og avslutt med et spor som forklarer hvor de parkerer.", how: "Ny sekvens · kategori quiz · del med venner", preset: { cats: ["quiz"], seq: "Quiz til hytta", vis: "friends" } },
+  { ico: "💌", h: "Hilsen der dere møttes første gang", txt: "Legg igjen en hilsen til kjæresten din på stedet der dere møttes. Gjør sporet skjult, og send lenken bare til henne eller ham.", how: "Skjult skattejakt · bare meg · del lenken", preset: { access: "hidden", vis: "private", radius: 30 } },
+  { ico: "🏘", h: "Fortell om nabolaget ditt", txt: "Hvem bygde huset på hjørnet? Hva skjedde på løkka? Legg spor ved stedene, gjerne som en vandring i en sekvens.", how: "Spor ved hvert sted · gjerne sekvens", preset: { cats: ["lokalhistorie"] } },
+  { ico: "🗣", h: "Dialektreisen fra sør til nord", txt: "Fortell en artig historie på din dialekt der du bor, og utfordre noen du kjenner til å gjøre det samme et annet sted. Så kan andre reise gjennom landet og følge dialektene.", how: "Kategori dialekt · 📣 Utfordre en venn", preset: { cats: ["dialekt"], vis: "public" } },
+  { ico: "🕰", h: "Memory lane", txt: "Fortell et minne fra et sted, og utfordre venner til å fortelle sine minner fra samme sted med «💬 Svar». Som et fotoalbum – bare med ekte stemmer.", how: "Kategori minner · 📣 Utfordre · 💬 Svar", preset: { cats: ["minner"] } },
+  { ico: "🗝", h: "Rebusløp med gjemte spor", txt: "Gjem postene som skjulte spor i en sekvens. Hver post gir et hint og ber om et kodeord før neste post dukker opp. Slå på tidtaking og se hvem som er raskest.", how: "Skjult skattejakt · ny sekvens med tidtaking · kodeord", preset: { access: "hidden", seq: "Rebusløp", timed: true, cats: ["quiz"], radius: 25 } },
+  { ico: "⛵", h: "SoundPin-regatta", txt: "Legg ut spor som merker båtene må innom i rekkefølge. Del erfaringer om farvannet ved hvert merke – strøm, grunner, gode ankringsplasser. Tiden går fra første til siste merke, gjerne med tidsfrist.", how: "Ny sekvens med tidtaking · radius fra 20 m · kategori seiling", preset: { seq: "Regatta", timed: true, cats: ["seiling"], radius: 50 } }
+];
+function openHelp() {
+  const box = $("help");
+  box.innerHTML = `<div class="row"><h2 style="flex:1">💡 Bruksområder</h2><button id="help-x">✕</button></div>
+    <p class="hint">Eksempler på hva du kan lage med SoundPin. «Prøv» åpner skjemaet for nytt spor med valgene ferdig satt – du tar opp der krysset står.</p>
+    ${USE_CASES.map((u, i) => `<div class="uc"><h3>${u.ico} ${esc(u.h)}</h3><p>${esc(u.txt)}</p><div class="row"><span class="hint" style="flex:1">${esc(u.how)}</span><button data-uc="${i}" class="primary">Prøv</button></div></div>`).join("")}
+    <div class="footer"><button id="help-intro">▶ Se introduksjonen</button><button id="help-close">Lukk</button></div>`;
+  const close = () => $("help-bg").classList.remove("show");
+  $("help-x").onclick = close; $("help-close").onclick = close;
+  $("help-intro").onclick = () => { close(); showIntro(0); };
+  box.querySelectorAll("[data-uc]").forEach(b => b.onclick = () => { close(); tryUseCase(USE_CASES[+b.dataset.uc]); });
+  $("help-bg").classList.add("show");
+}
+function tryUseCase(u) {
+  if (!canRecord()) return;
+  R.crossPos = map.getCenter();
+  openRecorder({});
+  setPos("map");
+  const p = u.preset || {};
+  (p.cats || []).forEach(c => R.cats.add(c)); renderCats();
+  if (p.vis) setVis(p.vis);
+  if (p.access) setAccess(p.access);
+  if (p.radius) setRadius(p.radius);
+  if (p.seq) {
+    $("rec-seq").value = "new"; $("rec-seq").onchange();
+    $("rec-seq-name").value = p.seq;
+    if (p.timed) { $("rec-timed").checked = true; $("rec-timed").onchange(); }
+  }
+  if (p.access || p.seq || p.radius) $("rec-more").open = true;
+  updateSummary();
+  toast(`${u.ico} ${u.h}: valgene er satt. Ta opp, gi sporet en tittel og lagre.`, 5000);
+}
+$("help-btn").onclick = openHelp;
+
 // ================= Oppstart =================
 (async () => {
+  // Introduksjonen vises ved oppstart, men ikke når appen åpnes fra en lenke til et spor eller en invitasjon
+  const qs0 = new URLSearchParams(location.search);
+  if (!store.get("sp-intro-off", false) && !qs0.get("pin") && !qs0.get("venn")) showIntro(0);
   await loadAll();
+  renderRun();
   const id = new URLSearchParams(location.search).get("pin");
   const openPin = () => { const t = id && byId.get(id); if (t) { map.setView([t.lat, t.lng], 16); play(t); return true; } return false; };
   openPin();

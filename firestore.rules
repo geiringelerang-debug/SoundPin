@@ -1,5 +1,5 @@
 rules_version = '2';
-// SoundPin – Firestore-regler (versjon 4)
+// SoundPin – Firestore-regler (versjon 5)
 // Limes inn i Firebase-konsollen: Build → Firestore Database → Rules → Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -108,6 +108,7 @@ service cloud.firestore {
                         && request.resource.data.creator == resource.data.creator
                         && request.resource.data.label == resource.data.label
                         && request.resource.data.get('review', null) == resource.data.get('review', null)
+                        && request.resource.data.get('archived', false) == resource.data.get('archived', false)
                         && (request.resource.data.visibility != 'public' || canPublic())
                         && okRadius(request.resource.data) && okAccess(request.resource.data))
                     // Verifikatorer og admin: godkjenne, avvise, verifisere og trekke tilbake
@@ -115,7 +116,11 @@ service cloud.firestore {
                         && request.resource.data.diff(resource.data).affectedKeys()
                              .hasOnly(['label', 'visibility', 'review', 'reviewNote', 'reviewedBy', 'reviewedAt', 'loud'])
                         && request.resource.data.label in ['local', 'verified']
-                        && request.resource.data.visibility in ['private', 'friends', 'public']);
+                        && request.resource.data.visibility in ['private', 'friends', 'public'])
+                    // Admin: arkivere (skjule) og gjenopprette rett fra kartet
+                    || (isAdmin()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archived', 'reviewedBy', 'reviewedAt'])
+                        && request.resource.data.archived is bool);
       allow delete: if (realUser() && resource.data.creator == request.auth.uid) || isAdmin();
     }
 
@@ -124,6 +129,18 @@ service cloud.firestore {
       allow read: if true;
       allow write: if signedIn()
         && request.resource.data.keys().hasOnly(['s', 'c', 'r', 'u', 't', 'boost']);
+    }
+
+    // ---- Resultater for sekvenser med tidtaking ----
+    match /sp_results/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['seq', 'ms', 'over', 'limit', 'at', 'uid', 'name'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.seq is string
+        && request.resource.data.ms is number && request.resource.data.ms > 0
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60;
+      allow delete: if isAdmin();
     }
 
     // ---- Rapporter ----
