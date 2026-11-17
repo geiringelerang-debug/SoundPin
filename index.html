@@ -338,6 +338,8 @@
 
 <!-- Hjelp: bruksområder -->
 <div class="sheet-bg" id="help-bg"><div class="sheet" id="help"></div></div>
+<!-- Admin: nyeste spor fra alle brukere -->
+<div class="sheet-bg" id="new-bg"><div class="sheet" id="newest"></div></div>
 <!-- Resultater for en sekvens med tidtaking -->
 <div class="sheet-bg" id="res-bg"><div class="sheet" id="res"></div></div>
 
@@ -493,7 +495,7 @@ const DAY = 864e5;
 const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
 const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
 const ARCHIVE_NAME = "SoundPin-arkivet";
-const APP_VERSION = "5.5";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
+const APP_VERSION = "5.6";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
 
 // ================= Tilstand =================
 const store = {
@@ -1591,12 +1593,42 @@ async function saveProfile() {
   } catch (e) { $("pf-err").textContent = "Kunne ikke lagre: " + (e.code || e.message); }
   btn.disabled = false;
 }
+// Admin/verifikator: de nyeste sporene uansett hvem de er delt med (reglene gir verifikatorer lesetilgang til alle)
+const VIS_ICON = { private: "🔒 Bare meg", friends: "👥 Venner", public: "🌍 Alle" };
+async function openNewest() {
+  const box = $("newest");
+  box.innerHTML = `<div class="row"><h2 style="flex:1">🆕 Nyeste spor</h2><button id="nw-x">✕</button></div>
+    <p class="hint">De 60 nyeste sporene fra alle brukere, også de som bare er delt med venner eller er private. ▶ viser sporet i kartet.</p>
+    <div id="nw-list" class="hint">Laster …</div>`;
+  $("nw-x").onclick = () => $("new-bg").classList.remove("show");
+  $("new-bg").classList.add("show");
+  try {
+    const snap = await fb.getDocs(fb.query(fb.collection(fb.db, "sp_tracks"), fb.orderBy("createdAt", "desc"), fb.limit(60)));
+    const list = snap.docs.map(d => normTrack(d.id, d.data()));
+    const el = $("nw-list"); el.className = ""; el.innerHTML = "";
+    if (!list.length) { el.innerHTML = '<p class="hint">Ingen spor ennå.</p>'; return; }
+    list.forEach(t => {
+      const when = new Date(t.createdAt).toLocaleString("nb-NO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      const flags = [VIS_ICON[t.visibility] || t.visibility, t.review === "pending" ? "⏳ venter på godkjenning" : "", t.archived ? "🗄 arkivert" : "", t.replyTo ? "↩ svar" : "", t.access && t.access !== "map" ? ACCESS_NAMES[t.access] : ""].filter(Boolean).join(" · ");
+      const r = document.createElement("div"); r.className = "list-row";
+      r.innerHTML = `<button>▶</button><span style="flex:1"><b>${esc(t.creatorName || "Ukjent")}</b> ${esc(t.title || "Uten navn")}<br><span class="hint">${when} · ${flags}</span></span>`;
+      r.querySelector("button").onclick = () => {
+        if (!byId.has(t.id)) setTracks(tracks.concat([t]));       // vis sporet i kartet selv om det ikke er delt med deg
+        const tt = byId.get(t.id), p = tt.replyTo ? byId.get(tt.replyTo) || tt : tt;
+        $("new-bg").classList.remove("show");
+        map.setView([p.lat, p.lng], 17); play(tt);
+      };
+      el.appendChild(r);
+    });
+  } catch (e) { $("nw-list").textContent = "Kunne ikke laste: " + (e.code || e.message); }
+}
 async function renderAdmin() {
   const box = $("pf-admin");
   const pending = tracks.filter(t => t.review === "pending").length;
   box.innerHTML = `<label>Administrasjon</label>
     <div class="row"><button id="ad-queue" style="flex:1">✅ Godkjenningskø (${pending})</button>${isAdmin() ? '<button id="ad-archive" style="flex:1">🧹 Rydd arkivet</button>' : ""}</div>
     ${isAdmin() ? `<div class="row" style="margin-top:.4rem"><button id="ad-lost" style="flex:1">🧩 Tapte spor (${lostRaw.filter(x => !archiveMeta[x.id]?.status).length})</button><button id="ad-loud" style="flex:1">🔊 Mål lydstyrke</button></div>` : ""}
+    <div class="row" style="margin-top:.4rem"><button id="ad-newest" style="flex:1">🆕 Nyeste spor fra alle brukere</button></div>
     ${isAdmin() ? `<label>Arkiverte nye spor</label><div id="ad-arch"></div>` : ""}
     ${isAdmin() ? `<label>Brukere og roller</label><div id="ad-users" class="hint">Laster …</div><label>Rapporterte spor</label><div id="ad-reports" class="hint">Laster …</div>` : ""}`;
   $("ad-queue").onclick = () => { $("prof-bg").classList.remove("show"); openQueue(); };
@@ -1604,6 +1636,7 @@ async function renderAdmin() {
   $("ad-archive").onclick = () => { $("prof-bg").classList.remove("show"); openArchive(); };
   $("ad-lost").onclick = () => { $("prof-bg").classList.remove("show"); openLost(); };
   $("ad-loud").onclick = () => { $("prof-bg").classList.remove("show"); openLoud(); };
+  $("ad-newest").onclick = () => { $("prof-bg").classList.remove("show"); openNewest(); };
   // Nye spor som er arkivert fra kartet (arkivspor fra den gamle appen finnes under «Rydd arkivet» → Arkivert)
   const arch = tracks.filter(t => !t.legacy && t.archived), ab = $("ad-arch");
   if (!arch.length) ab.innerHTML = '<div class="hint">Ingen.</div>';
