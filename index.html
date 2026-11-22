@@ -781,6 +781,7 @@ function render() {
   }
   const total = tracks.filter(playable).length;
   $("status").textContent = heatOn ? `Varmekart · ${total} spor`
+    : activeSeq && seqMeta[activeSeq.id] ? `${activeSeq.test ? "Test: " : ""}${seqMeta[activeSeq.id].name} · ${list.length} av ${seqMeta[activeSeq.id].list.length} poster synlige${walking && accuracy != null ? ` · GPS ±${Math.round(accuracy)} m` : ""}`
     : walking ? (me ? `Gå-modus: ${list.length} mest relevante uhørte spor · ${heard.size} hørt${accuracy != null ? ` · GPS ±${Math.round(accuracy)} m` : ""}` : "Venter på posisjon …")
     : `${list.length} av ${total} spor${activeTag ? ` med «${activeTag}»` : ""} · ${heard.size} hørt`;
 }
@@ -1169,7 +1170,9 @@ function checkNearby() {
   const stalled = current && !speaking && !audio.paused && !audio.ended && Date.now() - lastProgress > STALL_MS;
   if (stalled) { console.warn("Sporet sto stille – går videre", current.id); closePlayer(); }
   // Opptatt: noe spilles, eller spilleren står åpen for å lese eller svare
-  const busy = current && ((!audio.paused && !audio.ended) || speaking || Date.now() < lingerUntil);
+  // Et opplåst spor med ubesvart spørsmål holder spilleren åpen til svaret er riktig eller den lukkes (i bilmodus styrt av tidsgrensen)
+  const waiting = current && !carMode && $("player").classList.contains("show") && needsAnswer(current) && isUnlocked(current);
+  const busy = current && ((!audio.paused && !audio.ended) || speaking || Date.now() < lingerUntil || waiting);
   const pool = [...new Set([...visibleTracks(), ...opened])];
   const cand = pool.map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d) || (opened.includes(x.t) && !isOwn(x.t)))
     .sort((a, b) => (isFollowed(b.t) - isFollowed(a.t)) || (a.d - b.d));   // fulgte innspillere går foran
@@ -1269,7 +1272,7 @@ function startSeq(id, test, { quiet = false } = {}) {
     closePlayer();
     if (!walking) toggleWalk(true);   // knappetrykket låser også opp lyden på iPhone
     const pts = m.list.filter(secretVisible).map(t => [t.lat, t.lng]);
-    if (pts.length) map.fitBounds(pts, { padding: [60, 60], maxZoom: 17 });
+    if (pts.length) map.fitBounds(pts, { paddingTopLeft: [40, 170], paddingBottomRight: [40, 40], maxZoom: 17 });
   }
   toast(test ? `🧪 Test av «${m.name}»: du ser sekvensen som en deltaker. Låste poster kan åpnes med «Lat som jeg er her».`
              : `🚩 «${m.name}» er startet. Bare postene i sekvensen vises. Trykk «Avslutt» øverst for å se alt igjen.`, 6000);
@@ -1743,7 +1746,7 @@ function renderMySeqs() {
     const go = fn => () => { $("prof-bg").classList.remove("show"); fn(); };
     el.querySelector('[data-x="test"]').onclick = go(() => startSeq(id, true));
     el.querySelector('[data-x="start"]').onclick = go(() => startSeq(id, false));
-    el.querySelector('[data-x="show"]').onclick = go(() => map.fitBounds(m.list.map(t => [t.lat, t.lng]), { padding: [60, 60], maxZoom: 17 }));
+    el.querySelector('[data-x="show"]').onclick = go(() => map.fitBounds(m.list.map(t => [t.lat, t.lng]), { paddingTopLeft: [40, 170], paddingBottomRight: [40, 40], maxZoom: 17 }));
     box.appendChild(el);
   });
 }
