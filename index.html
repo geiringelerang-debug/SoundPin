@@ -212,6 +212,31 @@
   #run.over { background: #b00e; }
   #run button { padding: .2rem .6rem; font-size: .75rem; background: #fff3; color: #fff; }
   body.car #run { top: calc(env(safe-area-inset-top) + .8rem); font-size: 1.1rem; }
+  #run.test { background: #c25e00ee; }
+  #run.fin { background: #1e7d32ee; }
+  #run .rb { display: none; }
+  #run.test .rb { display: inline-block; }
+  /* Sekvens: postnummer i pinnen og ferdige poster */
+  .pin .no { font-weight: 700; font-size: calc(var(--s, 32px) * .42); color: #222; white-space: nowrap; }
+  .pin.done { border-color: #1e7d32; background: #e3f4e5; }
+  .pin.done .no { color: #1e7d32; }
+  /* Velg sted i kartet */
+  #pick { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 1.2rem); z-index: 1700;
+    background: #fff; border-radius: 14px; box-shadow: 0 4px 18px #0004; padding: .7rem .8rem; display: none; gap: .5rem; align-items: center; max-width: 92vw; }
+  #pick.show { display: flex; }
+  #pick span { font-size: .85rem; }
+  body.picking #cross .lbl { display: none; }
+  /* Oversikt over postene i en sekvens */
+  .seq-ov { margin: .4rem 0; padding: .5rem .6rem; background: #f6f6f8; border-radius: 10px; font-size: .85rem; }
+  .seq-ov .post { display: flex; gap: .45rem; align-items: baseline; padding: .12rem 0; }
+  .seq-ov .post.me { font-weight: 700; }
+  .seq-ov .n { width: 1.4rem; text-align: right; color: #666; flex: none; }
+  .seq-warn { color: #a04a00; font-size: .82rem; margin-top: .35rem; }
+  .seq-ok { color: #1e7d32; font-size: .82rem; margin-top: .35rem; }
+  .access-help { font-size: .82rem; margin-top: .4rem; }
+  .access-help summary { cursor: pointer; color: var(--accent, #1a73e8); }
+  .access-help ol { margin: .4rem 0 0 1.1rem; padding: 0; }
+  .access-help li { margin-bottom: .25rem; }
   .res-row { display: flex; gap: .6rem; padding: .4rem 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
   .res-row.mine { font-weight: 600; background: #fff6e0; }
   .res-row .n { width: 1.8rem; color: var(--muted); }
@@ -312,7 +337,9 @@
 <div id="zoom"><img id="zoom-img" alt=""></div>
 
 <!-- Tidtaking på en sekvens -->
-<div id="run"><span id="run-txt"></span><button id="run-x" title="Avbryt løpet">✕</button></div>
+<div id="run"><span id="run-txt"></span><button id="run-reset" class="rb" title="Start testen på nytt">↺</button><button id="run-x" title="Avslutt sekvensen">Avslutt</button></div>
+<!-- Velg sted i kartet (nytt eller redigert spor) -->
+<div id="pick"><span>Flytt kartet så krysset står der sporet skal være.</span><button id="pick-cancel">Avbryt</button><button id="pick-ok" class="primary">✔ Her</button></div>
 
 <!-- Introduksjon -->
 <div id="spw-guide"><div class="card">
@@ -347,6 +374,7 @@
 <div class="sheet-bg" id="rec-bg"><div class="sheet">
   <div class="row"><h2 id="rec-title" style="flex:1">Nytt lydspor</h2><button id="rec-x" title="Lukk">✕</button></div>
 
+  <div class="hint" id="rec-edit-note" style="display:none">Lydopptaket kan ikke byttes. Vil du ta opp på nytt, må du slette sporet og lage det på nytt.</div>
   <div id="rec-audio">
     <div class="rec">
       <button id="rec-start" class="recbtn">● Ta opp</button>
@@ -396,10 +424,11 @@
     <div id="rec-adv-place">
     <label>Plassering</label>
     <div class="seg" id="rec-pos">
+      <button data-p="keep" id="rec-pos-keep">Som før</button>
       <button data-p="me">📍 Min posisjon</button>
       <button data-p="map">✚ Ved krysset</button>
     </div>
-    <div class="hint" id="rec-pos-hint"></div>
+    <div class="hint"><span id="rec-pos-hint"></span> <a href="#" id="rec-pick">Velg et annet sted i kartet</a></div>
 
     <label for="rec-radius">Radius: <b id="rec-radius-val">50 m</b></label>
     <input type="range" id="rec-radius" min="10" max="500" step="5" value="50" style="width:100%">
@@ -407,16 +436,30 @@
 
     <label>Hvordan finnes sporet?</label>
     <div class="seg" id="rec-access">
-      <button data-a="map">Vises i kartet</button>
-      <button data-a="locked">Må være der</button>
-      <button data-a="hidden">Skjult skattejakt</button>
+      <button data-a="map">👁 I kartet</button>
+      <button data-a="locked">🔒 Må være der</button>
+      <button data-a="hidden">🗝 Skjult</button>
     </div>
     <div class="hint" id="rec-access-hint"></div>
 
-    <label for="rec-seq">Del av en sekvens</label>
+    <label for="rec-seq">Del av en sekvens (quiz, skattejakt, rute)</label>
     <select id="rec-seq"></select>
-    <input type="text" id="rec-seq-name" placeholder="Navn på ny sekvens, f.eks. «Fister–Hjelmeland»" style="display:none; margin-top:.4rem">
-    <div class="hint">Spor i en sekvens spilles bare når du beveger deg i samme retning som sekvensen går. Lag én sekvens for hver kjøreretning.</div>
+    <input type="text" id="rec-seq-name" placeholder="Navn på ny sekvens, f.eks. «Hundvåg quiz»" style="display:none; margin-top:.4rem">
+    <div id="rec-seqno-box" style="display:none; margin-top:.4rem">
+      <label for="rec-seqno" style="margin-top:0">Nummer i sekvensen</label>
+      <input type="number" id="rec-seqno" min="1" step="1" inputmode="numeric" style="width:6rem">
+    </div>
+    <div id="rec-seq-ov"></div>
+    <details class="access-help" id="rec-seq-help">
+      <summary>Slik lager du en quiz eller skattejakt</summary>
+      <ol>
+        <li>Lag første post og velg <b>+ Ny sekvens</b>. Velg <b>🔒 Må være der</b>: posten står i kartet med hengelås og åpnes først når deltakeren er der.</li>
+        <li>Lag de neste postene i samme sekvens og velg <b>🗝 Skjult</b>. Da er de usynlige til forrige post er løst.</li>
+        <li>Still spørsmålet i opptaket og skriv riktig svar under <b>Kodeord</b>. Riktig svar får neste post til å dukke opp.</li>
+        <li>Test sekvensen med <b>🧪 Test som deltaker</b> i spilleren eller under Profil → Mine sekvenser. Som eier ser du ellers alt.</li>
+      </ol>
+      <div class="hint">Deltakerne trykker <b>🚩 Start</b> på første post (eller går dit). Da vises bare postene i sekvensen. Uten startet sekvens spilles poster bare når du beveger deg i samme retning som sekvensen går, som på en vei.</div>
+    </details>
     <div id="rec-timed-box" style="display:none">
       <label style="display:flex; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox" id="rec-timed"> ⏱ Med tidtaking</label>
       <div class="hint">Klokka starter ved første spor og stopper ved siste. Alle sporene må passeres i rekkefølge, innenfor radiusen som er satt.</div>
@@ -428,6 +471,7 @@
 
     <label for="rec-code">Kodeord / riktig svar (valgfritt)</label>
     <input type="text" id="rec-code" maxlength="100" placeholder="F.eks. 1814 – flere svar skilles med /">
+    <label id="rec-code-clear-box" style="display:none; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox" id="rec-code-clear"> Fjern spørsmålet (ingen kodeord)</label>
     <div class="hint">Still spørsmålet i opptaket. Lytteren må skrive riktig svar før svaret under vises og neste skjulte spor i sekvensen dukker opp. Store og små bokstaver teller ikke.</div>
     <div id="rec-reveal-box" style="display:none">
       <label for="rec-reveal">Dette vises og leses opp når svaret er riktig</label>
@@ -495,7 +539,7 @@ const DAY = 864e5;
 const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
 const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
 const ARCHIVE_NAME = "SoundPin-arkivet";
-const APP_VERSION = "5.6";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
+const APP_VERSION = "6.0";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
 
 // ================= Tilstand =================
 const store = {
@@ -513,6 +557,11 @@ let solved = new Set(store.get("sp-solved", []));   // spor der du har gitt rikt
 let unlocks = store.get("sp-unlocks", {});   // spor-id → tidspunkt for opplåsing (også synket til Firestore)
 // Skjulte spor du fant i forrige versjon regnes som opplåst
 store.get("sp-revealed", []).forEach(id => unlocks[id] ||= Date.now()); store.set("sp-unlocks", unlocks); localStorage.removeItem("sp-revealed");
+// Aktiv sekvens: bare postene i sekvensen vises. test = «Test som deltaker» (egne spor og admin-tilgang teller ikke,
+// og fremdriften holdes for seg selv, så den kan nullstilles uten å røre ekte opplåsinger og svar)
+let activeSeq = store.get("sp-active-seq", null);   // { id, test, start }
+let T = { unlocks: new Set(store.get("sp-test-unlocks", [])), solved: new Set(store.get("sp-test-solved", [])), heard: new Set(store.get("sp-test-heard", [])) };
+function saveTest() { store.set("sp-test-unlocks", [...T.unlocks]); store.set("sp-test-solved", [...T.solved]); store.set("sp-test-heard", [...T.heard]); }
 let radiusScale = store.get("sp-radius-scale", "normal");
 let armed = new Map();              // spor-id → false etter avspilling, til du har vært utenfor radius + margin
 let accuracy = null, prevMe = null;
@@ -604,13 +653,21 @@ const trackRadius = t => clampRadius(t.radius);
 const accessOf = t => t.access || (t.hidden ? "hidden" : "map");
 const isLocked = t => accessOf(t) !== "map";
 const isOwn = t => !!(user && t.creator && t.creator === user.uid);
-const isUnlocked = t => !isLocked(t) || !!unlocks[t.id] || isOwn(t);
+const inTest = t => !!(activeSeq?.test && t.seqId === activeSeq.id);
+const isUnlocked = t => !isLocked(t) || (inTest(t) ? T.unlocks.has(t.id) : (!!unlocks[t.id] || isOwn(t)));
+const isSolved = t => inTest(t) ? T.solved.has(t.id) : solved.has(t.id);
+const isHeard = t => inTest(t) ? T.heard.has(t.id) : heard.has(t.id);
+const needsAnswer = t => !!(t?.codeHash?.length && !isSolved(t));
+// Sekvensposter og spørsmål skal ikke forsvinne fra kartet når de er hørt
+const keepInMap = t => !!(t.seqId || t.codeHash?.length);
+// En post er «ferdig» når spørsmålet er besvart, eller (uten spørsmål) når den er låst opp og hørt
+const postDone = t => t.codeHash?.length ? isSolved(t) : (isUnlocked(t) && isHeard(t));
 function secretVisible(t) {
-  if (accessOf(t) !== "hidden" || isUnlocked(t) || isAdmin()) return true;   // admin ser skjulte spor (med lås) for å kunne moderere
-  // Neste spor i en skattejakt dukker opp (med lås) når du har hørt det forrige
+  if (accessOf(t) !== "hidden" || isUnlocked(t) || (isAdmin() && !inTest(t))) return true;   // admin ser skjulte spor (med lås) for å kunne moderere
+  // Neste spor i en skattejakt dukker opp (med lås) når du har svart på eller hørt det forrige
   if (t.seqId && t.seqNo > 1) {
     const prev = tracks.find(x => x.seqId === t.seqId && x.seqNo === t.seqNo - 1);
-    if (prev && (prev.codeHash?.length ? solved.has(prev.id) : heard.has(prev.id))) return true;
+    if (prev && (prev.codeHash?.length ? isSolved(prev) : isHeard(prev))) return true;
   }
   return false;
 }
@@ -664,6 +721,8 @@ $("rec-filter").onchange = e => { recFilter = e.target.value || null; renderRecF
 
 function baseList() {
   let list = tracks.filter(playable).filter(t => !isMuted(t));
+  // Aktiv sekvens: bare postene i sekvensen, uansett kategori- og innspillerfilter
+  if (activeSeq && seqMeta[activeSeq.id]) return list.filter(t => t.seqId === activeSeq.id);
   if (recFilter) { const g = recorders()[recFilter]; list = list.filter(t => g && g.keys.has(recKey(t))); }
   if (activeTag === "__mine") list = list.filter(isOwn);
   else if (activeTag === "__unlocked") list = list.filter(t => unlocks[t.id] && !isOwn(t));
@@ -681,10 +740,12 @@ function visibleTracks() {
   let list = baseList().filter(secretVisible);
   if (walking) {
     // Spor fra innspillere du følger er alltid med – også om du har hørt dem før – og teller ikke mot 15-grensen
-    list = list.filter(t => !heard.has(t.id) || isFollowed(t));
+    // Sekvensposter og spørsmål blir liggende, og teller heller ikke mot grensen
+    list = list.filter(t => !isHeard(t) || isFollowed(t) || keepInMap(t));
     if (me) {
-      const fav = list.filter(isFollowed);
-      const rest = list.filter(t => !isFollowed(t)).map(t => ({ t, r: relevance(t) })).sort((a, b) => b.r - a.r).slice(0, WALK_VISIBLE).map(x => x.t);
+      const always = t => isFollowed(t) || keepInMap(t) || !!activeSeq;
+      const fav = list.filter(always);
+      const rest = list.filter(t => !always(t)).map(t => ({ t, r: relevance(t) })).sort((a, b) => b.r - a.r).slice(0, WALK_VISIBLE).map(x => x.t);
       list = [...fav, ...rest];
     }
   }
@@ -696,8 +757,11 @@ function markerFor(t) {
   const q = quality(t);
   const size = Math.round(24 + 18 * q);
   const locked = !isUnlocked(t);
-  const cls = ["pin", t.label === "verified" ? "verified" : t.label === "ai" ? "ai" : "", heard.has(t.id) ? "heard" : "", accessOf(t) === "hidden" ? "secret" : "", locked ? "locked" : "", isFollowed(t) ? "followed" : ""].join(" ");
-  const inner = locked ? "🔒" : t.creatorIcon ? `<img src="${esc(t.creatorIcon)}" alt="">` : (t.kind === "text" ? "✍" : accessOf(t) === "hidden" ? "🗝" : "🔊");
+  // Ferdige poster i en sekvens får et grønt merke i stedet for å bli grå
+  const done = t.seqId && postDone(t);
+  const cls = ["pin", t.label === "verified" ? "verified" : t.label === "ai" ? "ai" : "", done ? "done" : isHeard(t) ? "heard" : "", accessOf(t) === "hidden" ? "secret" : "", locked ? "locked" : "", isFollowed(t) ? "followed" : ""].join(" ");
+  const inSeq = activeSeq && t.seqId === activeSeq.id;
+  const inner = inSeq ? `<span class="no">${done ? "✓" : (locked ? "🔒" : "") + t.seqNo}</span>` : locked ? "🔒" : t.creatorIcon ? `<img src="${esc(t.creatorIcon)}" alt="">` : (t.kind === "text" ? "✍" : accessOf(t) === "hidden" ? "🗝" : "🔊");
   const icon = L.divIcon({ className: "", html: `<div class="${cls}" style="--s:${size}px; --o:${(0.55 + 0.45 * q).toFixed(2)}">${inner}</div>`, iconSize: [0, 0] });
   const m = L.marker([t.lat, t.lng], { icon, title: t.title || "" });
   m.on("click", () => play(t));
@@ -748,16 +812,28 @@ function stopAll() {
 function onStarted(t) {
   if (!startedThisSession.has(t.id)) { startedThisSession.add(t.id); bump(t.id, "s"); }
 }
+// Spilleren blir stående etter avspilling, så man rekker å lese, svare eller spille av igjen.
+// Spor med spørsmål står til riktig svar eller ✕ (i bilmodus høyst 2 min); andre spor i 30 sekunder.
+const LINGER_MS = 30000, CAR_ANSWER_MS = 120000;
+let lingerUntil = 0, closeTimer = null;
+function lingerThenClose(t, ms) {
+  clearTimeout(closeTimer);
+  lingerUntil = Date.now() + ms;
+  closeTimer = setTimeout(() => { if (current === t && !((!audio.paused && !audio.ended) || speaking)) { closePlayer(); if (walking) checkNearby(); } }, ms);
+}
 function onCompleted(t) {
-  heard.add(t.id); store.set("sp-heard", [...heard]);
-  bump(t.id, "c");
-  // I gå- og bilmodus lukkes sporet når det er ferdig, så neste kan starte
-  if (walking && current === t) closePlayer();
-  render();
-  if (walking) setTimeout(checkNearby, 800);
+  if (inTest(t)) { T.heard.add(t.id); saveTest(); }
+  else { heard.add(t.id); store.set("sp-heard", [...heard]); bump(t.id, "c"); }
+  if (walking && current === t) {
+    if (needsAnswer(t)) { if (carMode) lingerThenClose(t, CAR_ANSWER_MS); else { clearTimeout(closeTimer); lingerUntil = Infinity; } }
+    else lingerThenClose(t, LINGER_MS);
+  }
+  render(); renderRun();
+  if (activeSeq && t.seqId === activeSeq.id) checkSeqDone();
 }
 // Lukker spilleren og setter bilskjermen tilbake til start
 function closePlayer() {
+  clearTimeout(closeTimer); lingerUntil = 0;
   stopAll();
   $("player").classList.remove("show"); document.body.classList.remove("has-player");
   current = null;
@@ -830,6 +906,7 @@ function speak(t) {
 }
 function play(t) {
   stopAll();
+  clearTimeout(closeTimer); lingerUntil = 0;
   current = t;
   armed.set(t.id, false);
   if (!isUnlocked(t)) return showLocked(t);
@@ -841,7 +918,8 @@ function play(t) {
   if (t.tags.length) bits.push(esc(t.tags.join(" · ")));
   if (me) bits.push(fmtDist(dist(me, t)) + " unna");
   if (t.seqName) bits.push(`Sekvens «${esc(t.seqName)}» #${t.seqNo}${isTimed(t) ? ` av ${seqMeta[t.seqId].list.length} · ⏱ med tidtaking${seqMeta[t.seqId].limit ? ` (${seqMeta[t.seqId].limit} min)` : ""}` : ""}`);
-  if (isLocked(t) && unlocks[t.id]) bits.push(`🔓 Låst opp ${new Date(unlocks[t.id]).toLocaleDateString("nb-NO")}`);
+  if (isLocked(t) && !inTest(t) && unlocks[t.id]) bits.push(`🔓 Låst opp ${new Date(unlocks[t.id]).toLocaleDateString("nb-NO")}`);
+  if (inTest(t)) bits.push("🧪 Test som deltaker");
   bits.push(`Lyttescore ${Math.round(quality(t) * 100)} %`);
   const vis = t.visibility === "private" ? '<span class="badge grey">Bare meg</span>' : t.visibility === "friends" ? '<span class="badge grey">Venner</span>' : "";
   $("p-meta").innerHTML = `<span class="badge ${lbl}">${LABELS[lbl]}</span>${t.kind === "text" ? '<span class="badge grey">Syntetisk stemme</span>' : ""}${accessOf(t) === "hidden" ? '<span class="badge grey">Skjult spor</span>' : accessOf(t) === "locked" ? '<span class="badge grey">Må være der</span>' : ""}${vis}<br>${bits.join("  ·  ")}`;
@@ -867,7 +945,7 @@ function play(t) {
 // Bilmodus: bildet byttes bare når et nytt spor starter. Beskrivelse og forstørring bare når bilen står stille (CSS: body.stopped).
 function setCarNow(t) {
   $("car-now").textContent = t.title || "Uten navn";
-  $("car-code").classList.toggle("has", !!(t.codeHash?.length && !solved.has(t.id))); $("car-code-in").value = "";
+  $("car-code").classList.toggle("has", needsAnswer(t)); $("car-code-in").value = "";
   $("car-desc").textContent = t.desc || "";
   const img = $("car-img");
   if (t.imageUrl) { img.src = t.imageUrl; img.classList.add("has"); } else { img.removeAttribute("src"); img.classList.remove("has"); }
@@ -888,13 +966,26 @@ function showLocked(t) {
   $("p-replies").style.display = "none"; $("p-code").style.display = "none";
   const box = $("p-actions"); box.innerHTML = "";
   const b = document.createElement("button"); b.textContent = "🧭 Vis i kartet"; b.onclick = () => map.setView([t.lat, t.lng], 17); box.appendChild(b);
-  if (isVerifier()) {   // admin/verifikator kan høre innholdet uten å låse det opp
+  if (inTest(t)) {   // test hjemmefra: lat som du er kommet fram
+    const x = document.createElement("button"); x.textContent = "🧪 Lat som jeg er her";
+    x.onclick = () => { unlock(t); toast(`🔓 Låst opp «${t.title || "posten"}» (test)`); render(); renderRun(); play(t); };
+    box.appendChild(x);
+  } else if (isVerifier()) {   // admin/verifikator kan høre innholdet uten å låse det opp
     const a = document.createElement("button"); a.textContent = "▶ Hør (admin)";
     a.onclick = () => { const was = unlocks[t.id]; unlocks[t.id] = 1; play(t); if (!was) delete unlocks[t.id]; };
     box.appendChild(a);
   }
+  seqButtons(t, (label, fn, cls = "") => { const x = document.createElement("button"); x.textContent = label; x.className = cls; x.onclick = fn; box.appendChild(x); });
   $("player").classList.add("show"); document.body.classList.add("has-player");
   if (!walking) map.panTo([t.lat, t.lng]);
+}
+// Knapper for sekvensen sporet hører til: start, test som deltaker, rediger
+function seqButtons(t, add) {
+  if (!t.seqId || !seqMeta[t.seqId]) return;
+  const m = seqMeta[t.seqId];
+  if (activeSeq?.id !== t.seqId) add(`🚩 Start «${m.name}»`, () => startSeq(t.seqId, false), "primary");
+  const mineSeq = m.list.some(isOwn);
+  if ((mineSeq || isAdmin()) && !activeSeq?.test) add("🧪 Test som deltaker", () => startSeq(t.seqId, true));
 }
 $("tts-btn").onclick = () => {
   if (!current) return;
@@ -911,6 +1002,8 @@ $("close").onclick = closePlayer;
 function renderActions(t) {
   const box = $("p-actions"); box.innerHTML = "";
   const add = (label, fn, cls = "") => { const b = document.createElement("button"); b.textContent = label; b.className = cls; b.onclick = fn; box.appendChild(b); };
+  add("↺ Spill igjen", () => replay(t));
+  seqButtons(t, add);
   add("💬 Svar", () => openRecorder({ replyTo: t }));   // play() viser bare opplåste spor, så alle her kan svare
   if (recKey(t) && !isOwn(t)) {
     add(isFollowed(t) ? "⭐ Følger" : "☆ Følg", () => { toggleFollow(t); renderActions(t); }, isFollowed(t) ? "on" : "");
@@ -930,7 +1023,14 @@ function renderActions(t) {
   });
   if (fb && user && t.legacy && isAdmin()) add("🧹 Rydd", () => { $("close").click(); openArchive({ only: t.id }); });
   if (fb && user && isAdmin() && !isOwn(t)) add("🗄 Arkiver", () => archiveTrack(t));
+  if (fb && user && !t.legacy && isOwn(t)) add("✏️ Rediger", () => openRecorder({ edit: t }));
   if (fb && user && !t.legacy && isOwn(t)) add("🗑 Slett", () => removeTrack(t));
+}
+// Spill av samme spor fra starten, uten å lukke spilleren
+function replay(t) {
+  clearTimeout(closeTimer); lingerUntil = needsAnswer(t) ? Infinity : 0;
+  if (t.kind === "text") speak(t);
+  else { audio.currentTime = 0; audio.play().catch(() => {}); }
 }
 // ================= Kodeord =================
 // Svaret lagres som SHA-256 av normalisert tekst, så det ikke kan leses rett ut av dataene. Flere riktige svar skilles med «/».
@@ -941,18 +1041,24 @@ async function checkCode(t, answer) {
   if (!t.codeHash?.length) return null;
   const ok = t.codeHash.includes(await sha(normCode(answer)));
   if (!ok) { if (navigator.vibrate) navigator.vibrate(120); return false; }
-  solved.add(t.id); store.set("sp-solved", [...solved]);
+  if (inTest(t)) { T.solved.add(t.id); saveTest(); }
+  else { solved.add(t.id); store.set("sp-solved", [...solved]); }
   if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
-  const next = t.seqId && tracks.find(x => x.seqId === t.seqId && x.seqNo === t.seqNo + 1 && accessOf(x) === "hidden" && !isUnlocked(x));
-  toast(next ? "✅ Riktig! Neste post har dukket opp i kartet." : "✅ Riktig!", 4000);
+  const next = t.seqId && tracks.find(x => x.seqId === t.seqId && x.seqNo === t.seqNo + 1);
+  const nextTxt = !next ? "" : accessOf(next) === "hidden" && !isUnlocked(next) ? " Neste post har dukket opp i kartet." : ` Neste: post ${next.seqNo}.`;
+  toast(`✅ Riktig!${nextTxt}`, 4500);
   if (t.codeReveal && !(audio && !audio.paused && !audio.ended)) speak({ id: "_preview", text: t.codeReveal });
-  render(); return true;
+  // Etter riktig svar blir svaret stående i 30 sekunder, så man rekker å lese det
+  if (walking && current === t) lingerThenClose(t, LINGER_MS);
+  render(); renderRun();
+  if (activeSeq && t.seqId === activeSeq.id) checkSeqDone();
+  return true;
 }
 function renderCode(t) {
   const box = $("p-code");
   if (!t.codeHash?.length) { box.style.display = "none"; return; }
   box.style.display = "block";
-  if (solved.has(t.id)) {
+  if (isSolved(t)) {
     box.innerHTML = `<div class="ok">✅ Du har svart riktig.</div>${t.codeReveal ? `<div class="reveal">${esc(t.codeReveal)}</div>` : ""}`;
     return;
   }
@@ -965,6 +1071,8 @@ function renderCode(t) {
   };
   $("code-go").onclick = go;
   $("code-in").onkeydown = e => { if (e.key === "Enter") go(); };
+  // Når man begynner å skrive, skal ikke spilleren lukke seg
+  $("code-in").onfocus = () => { if (current === t) { clearTimeout(closeTimer); lingerUntil = Infinity; } };
 }
 $("car-code-go").onclick = async () => {
   if (!current) return;
@@ -1022,18 +1130,21 @@ const lockReach = t => isTimed(t) ? passReach(t) : trackRadius(t) + Math.min(acc
 const rearmAt = t => reach(t) + Math.max(30, trackRadius(t) * 0.5);   // hysterese
 
 function shouldTrigger(t, d) {
-  if (isOwn(t) && !t.legacy) return false;                                         // egne nye spor spilles ikke automatisk
+  if (isOwn(t) && !t.legacy && !inTest(t)) return false;                          // egne nye spor spilles ikke automatisk (unntatt i test)
+  if (activeSeq && t.seqId === activeSeq.id && isHeard(t)) return false;          // poster i aktiv sekvens spilles automatisk bare én gang
   if (armed.get(t.id) === false) return false;                                     // nettopp spilt – venter til du har vært utenfor
   if (!isUnlocked(t)) return false;
   if (d > reach(t)) return false;
   if (carMode && (t.duration || 0) > CAR_MAX_SECONDS) return false;
   if (course != null && speed > 1.5) {
-    if (t.seqDir != null && angleDiff(course, t.seqDir) > SEQ_DEG) return false;   // feil retning for sekvensen
+    // Feil retning for sekvensen (for veier). Gjelder ikke når sekvensen er startet – da går man fra post til post.
+    if (t.seqDir != null && activeSeq?.id !== t.seqId && angleDiff(course, t.seqDir) > SEQ_DEG) return false;
     if (d > 35 && angleDiff(course, bearing(me, t)) > AHEAD_DEG) return false;      // ligger bak deg
   }
   return true;
 }
 function unlock(t) {
+  if (inTest(t)) { T.unlocks.add(t.id); saveTest(); return; }   // test: ikke ekte opplåsing
   const at = Date.now();
   unlocks[t.id] = at; store.set("sp-unlocks", unlocks);
   bump(t.id, "u");
@@ -1050,11 +1161,15 @@ function checkNearby() {
   if (opened.length) {
     toast(opened.length === 1 ? `🔓 Du låste opp «${opened[0].title || "et spor"}»!` : `🔓 Du låste opp ${opened.length} spor!`, 4000);
     if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
-    renderTags(); render();
+    // Første post i en sekvens låst opp på stedet: sekvensen starter av seg selv
+    const first = opened.find(t => t.seqId && t.seqNo === 1 && seqMeta[t.seqId]?.list.length > 1);
+    if (first && !activeSeq) startSeq(first.seqId, false, { quiet: true });
+    renderTags(); render(); renderRun();
   }
   const stalled = current && !speaking && !audio.paused && !audio.ended && Date.now() - lastProgress > STALL_MS;
   if (stalled) { console.warn("Sporet sto stille – går videre", current.id); closePlayer(); }
-  const busy = current && ((!audio.paused && !audio.ended) || speaking);
+  // Opptatt: noe spilles, eller spilleren står åpen for å lese eller svare
+  const busy = current && ((!audio.paused && !audio.ended) || speaking || Date.now() < lingerUntil);
   const pool = [...new Set([...visibleTracks(), ...opened])];
   const cand = pool.map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d) || (opened.includes(x.t) && !isOwn(x.t)))
     .sort((a, b) => (isFollowed(b.t) - isFollowed(a.t)) || (a.d - b.d));   // fulgte innspillere går foran
@@ -1138,6 +1253,45 @@ function computeSequences() {
 }
 const isTimed = t => !!(t.seqId && seqMeta[t.seqId]?.timed);
 
+// ---- Aktiv sekvens ----
+// Når en sekvens er startet, vises bare postene i den. Båndet øverst viser fremdriften og har «Avslutt».
+function startSeq(id, test, { quiet = false } = {}) {
+  const m = seqMeta[id]; if (!m) return;
+  if (test) {   // nullstill testfremdriften for sekvensen
+    m.list.forEach(t => { T.unlocks.delete(t.id); T.solved.delete(t.id); T.heard.delete(t.id); });
+    saveTest();
+    if (run?.seq === id) { run = null; store.set("sp-run", null); }
+  }
+  activeSeq = { id, test: !!test, start: Date.now() };
+  store.set("sp-active-seq", activeSeq);
+  armed.clear();
+  if (!quiet) {
+    closePlayer();
+    if (!walking) toggleWalk(true);   // knappetrykket låser også opp lyden på iPhone
+    const pts = m.list.filter(secretVisible).map(t => [t.lat, t.lng]);
+    if (pts.length) map.fitBounds(pts, { padding: [60, 60], maxZoom: 17 });
+  }
+  toast(test ? `🧪 Test av «${m.name}»: du ser sekvensen som en deltaker. Låste poster kan åpnes med «Lat som jeg er her».`
+             : `🚩 «${m.name}» er startet. Bare postene i sekvensen vises. Trykk «Avslutt» øverst for å se alt igjen.`, 6000);
+  render(); renderRun();
+}
+function endSeq() {
+  if (run && run.seq === activeSeq?.id) run = null, store.set("sp-run", null);
+  activeSeq = null; store.set("sp-active-seq", null);
+  closePlayer(); render(); renderRun();
+}
+function seqProgress() {
+  const m = activeSeq && seqMeta[activeSeq.id]; if (!m) return null;
+  const done = m.list.filter(postDone).length;
+  const next = m.list.find(t => !postDone(t));
+  return { m, done, n: m.list.length, next };
+}
+function checkSeqDone() {
+  const p = seqProgress(); if (!p || p.next || p.m.timed) return;   // med tidtaking melder finishRun målgang
+  toast(`🏁 Du har fullført «${p.m.name}»!${activeSeq.test ? " (test)" : ""}`, 7000, { label: "Avslutt", fn: endSeq });
+  if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 200]);
+}
+
 // ================= Tidtaking =================
 // Klokka starter når du forlater første spor og stopper ved siste. Sporene må passeres i rekkefølge,
 // innenfor radiusen som er satt (ingen ekstra rekkevidde for fart – det skal være litt utfordring).
@@ -1145,28 +1299,46 @@ let run = store.get("sp-run", null);   // { seq, name, start, next, n, limit }
 const passReach = t => trackRadius(t) + Math.min(accuracy || 0, 10);
 const fmtDur = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? `${h}:${String(m).padStart(2, "0")}` : `${m}`) + `:${String(x).padStart(2, "0")}`; };
 function saveRun() { store.set("sp-run", run); renderRun(); }
+// Båndet øverst: tidtaking hvis et løp pågår, ellers fremdriften i den aktive sekvensen
 function renderRun() {
   const box = $("run");
-  if (!run) { box.classList.remove("show", "over"); return; }
+  const p = seqProgress();
+  box.classList.toggle("test", !!activeSeq?.test);
+  if (!run && !p) { box.classList.remove("show", "over", "fin"); return; }
   box.classList.add("show");
-  if (!run.start) { $("run-txt").textContent = `⏱ ${run.name} · klar ved start`; box.classList.remove("over"); return; }
-  const el = Date.now() - run.start;
-  const over = run.limit && el > run.limit * 60000;
-  const left = run.limit ? (over ? " · over tiden" : ` · ${fmtDur(run.limit * 60000 - el)} igjen`) : "";
-  $("run-txt").textContent = `⏱ ${fmtDur(el)} · post ${run.next - 1} av ${run.n}${left}`;
-  box.classList.toggle("over", !!over);
+  const pre = activeSeq?.test ? "🧪 " : "";
+  if (run) {
+    box.classList.remove("fin");
+    if (!run.start) { $("run-txt").textContent = `${pre}⏱ ${run.name} · klar ved start`; box.classList.remove("over"); return; }
+    const el = Date.now() - run.start;
+    const over = run.limit && el > run.limit * 60000;
+    const left = run.limit ? (over ? " · over tiden" : ` · ${fmtDur(run.limit * 60000 - el)} igjen`) : "";
+    $("run-txt").textContent = `${pre}⏱ ${fmtDur(el)} · post ${run.next - 1} av ${run.n}${left}`;
+    box.classList.toggle("over", !!over);
+    return;
+  }
+  box.classList.remove("over");
+  box.classList.toggle("fin", !p.next);
+  const nxt = p.next ? ` · neste: post ${p.next.seqNo}${me && secretVisible(p.next) ? ` (${fmtDist(dist(me, p.next))})` : ""}` : " · fullført ✔";
+  $("run-txt").textContent = `${pre}🚩 ${p.m.name} · ${p.done} av ${p.n}${nxt}`;
 }
-setInterval(() => run && renderRun(), 1000);
-$("run-x").onclick = () => { if (confirm("Avbryte løpet? Tiden lagres ikke.")) { run = null; saveRun(); } };
+setInterval(() => (run || activeSeq) && renderRun(), 1000);
+$("run-x").onclick = () => {
+  if (run && run.start && !activeSeq?.test && !confirm("Avslutte løpet? Tiden lagres ikke.")) return;
+  if (activeSeq) endSeq(); else { run = null; saveRun(); }
+};
+$("run-reset").onclick = () => { if (activeSeq?.test && confirm("Starte testen på nytt fra post 1?")) startSeq(activeSeq.id, true); };
 function checkRun() {
   if (!me) return;
   for (const m of Object.values(seqMeta)) {
     if (!m.timed || m.list.length < 2) continue;
+    if (activeSeq && activeSeq.id !== m.id) continue;   // en annen sekvens er startet
     const at = n => m.list[n - 1], inside = t => segDist(prevMe, me, t) <= passReach(t);
     // Start: du er innenfor første spor. Tiden regnes fra siste gang du var der, så den starter når du drar fra start.
     if (inside(at(1)) && (!run || run.seq === m.id && run.next <= 2 || !run.start)) {
       const fresh = !run || run.seq !== m.id || !run.start;
       run = { seq: m.id, name: m.name, start: Date.now(), next: 2, n: m.list.length, limit: m.limit };
+      if (!activeSeq) startSeq(m.id, false, { quiet: true });
       saveRun();
       if (fresh) { toast(`⏱ ${m.name}: tidtakingen starter når du forlater start.${m.limit ? ` Frist: ${m.limit} min.` : ""}`, 5000); if (navigator.vibrate) navigator.vibrate([60, 40, 60]); }
       continue;
@@ -1186,8 +1358,9 @@ async function finishRun(m) {
   const r = { seq: m.id, ms, over, limit: run.limit || null, at: Date.now(), uid: user?.uid || null, name: profile?.name || (isReal() ? (user.displayName || "") : "") || "Anonym" };
   run = null; saveRun();
   if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 200]);
-  toast(`🏁 I mål! ${m.name}: ${fmtDur(ms)}${over ? " (over tiden)" : ""}`, 8000, { label: "Resultater", fn: () => openResults(m.id) });
-  if (fb && user) { try { await fb.addDoc(fb.collection(fb.db, "sp_results"), r); } catch (e) { console.warn("Resultat ikke lagret", e); toast("Tiden kunne ikke lagres: " + (e.code || e.message), 6000); } }
+  const test = activeSeq?.test && activeSeq.id === m.id;
+  toast(`🏁 I mål! ${m.name}: ${fmtDur(ms)}${over ? " (over tiden)" : ""}${test ? " · test, tiden lagres ikke" : ""}`, 8000, test ? { label: "Avslutt", fn: endSeq } : { label: "Resultater", fn: () => openResults(m.id) });
+  if (fb && user && !test) { try { await fb.addDoc(fb.collection(fb.db, "sp_results"), r); } catch (e) { console.warn("Resultat ikke lagret", e); toast("Tiden kunne ikke lagres: " + (e.code || e.message), 6000); } }
 }
 async function openResults(seqId) {
   const m = seqMeta[seqId], box = $("res");
@@ -1240,7 +1413,7 @@ function normTrack(id, d) {
 }
 function setTracks(list) {
   tracks = list; byId = new Map(list.map(t => [t.id, t]));
-  computeSequences(); renderTags(); renderRecFilter(); render();
+  computeSequences(); renderTags(); renderRecFilter(); render(); renderRun();
 }
 async function loadAll() {
   if (!rawLegacy) {
@@ -1504,6 +1677,7 @@ function openProfile() {
       <div class="hint">De som åpner lenken og logger inn, kan høre sporene du deler med «Venner».</div>
       <label>Venner (${members.length})</label><div id="pf-members"></div>
       <label>Innspillere du følger eller har dempet</label><div id="pf-recs"></div>
+      <label>Mine sekvenser</label><div id="pf-seqs"></div>
       <label>Mine spor</label><div id="pf-tracks"></div>
       <div id="pf-admin"></div>
       <div class="err" id="pf-err"></div>
@@ -1519,7 +1693,7 @@ function openProfile() {
       };
       mbox.appendChild(r);
     });
-    renderMyTracks(); renderRecList();
+    renderMySeqs(); renderMyTracks(); renderRecList();
     $("pf-copy").onclick = () => navigator.clipboard.writeText(link).then(() => toast("Lenken er kopiert"));
     $("pf-out").onclick = async () => { await fb.signOut(fb.auth); $("prof-bg").classList.remove("show"); location.reload(); };
     $("pf-save").onclick = saveProfile;
@@ -1550,6 +1724,29 @@ function renderRecList() {
   });
 }
 // Egne spor med lyttescore og historikk; her kan de også slettes
+// Mine sekvenser: postene med hvordan de finnes, råd om oppsettet, og knapper for å teste eller starte
+function renderMySeqs() {
+  const box = $("pf-seqs"); if (!box) return;
+  const ids = [...new Set(tracks.filter(t => t.seqId && !t.legacy && !t.archived && t.creator === user.uid).map(t => t.seqId))];
+  if (!ids.length) { box.innerHTML = '<div class="hint">Ingen ennå. En sekvens er en quiz, skattejakt eller rute med poster i rekkefølge. Velg «+ Ny sekvens» under Avansert når du lager et spor.</div>'; return; }
+  box.innerHTML = "";
+  ids.forEach(id => {
+    const m = seqMeta[id]; if (!m) return;
+    const list = m.list.map(t => ({ title: t.title || "Uten navn", access: accessOf(t), code: !!t.codeHash?.length, radius: trackRadius(t) }));
+    const tips = seqAdvice(list, m.timed);
+    const el = document.createElement("div"); el.className = "seq-ov";
+    el.innerHTML = `<div class="row" style="align-items:baseline"><b style="flex:1">${esc(m.name)}</b><span class="hint">${list.length} poster${m.timed ? ` · ⏱${m.limit ? ` ${m.limit} min` : ""}` : ""}</span></div>
+      ${seqListHtml(list, { radius: true })}
+      ${tips.map(x => `<div class="seq-warn">⚠ ${esc(x)}</div>`).join("")}${list.length > 1 && !tips.length ? '<div class="seq-ok">✔ Postene dukker opp én og én.</div>' : ""}
+      <div class="hint" style="margin-top:.3rem">Trykk ✏️ Rediger på en post i listen under for å endre den.</div>
+      <div class="row" style="margin-top:.4rem; gap:.4rem; flex-wrap:wrap"><button data-x="test" class="primary">🧪 Test som deltaker</button><button data-x="start">🚩 Start</button><button data-x="show">Vis i kartet</button></div>`;
+    const go = fn => () => { $("prof-bg").classList.remove("show"); fn(); };
+    el.querySelector('[data-x="test"]').onclick = go(() => startSeq(id, true));
+    el.querySelector('[data-x="start"]').onclick = go(() => startSeq(id, false));
+    el.querySelector('[data-x="show"]').onclick = go(() => map.fitBounds(m.list.map(t => [t.lat, t.lng]), { padding: [60, 60], maxZoom: 17 }));
+    box.appendChild(el);
+  });
+}
 function renderMyTracks() {
   const box = $("pf-tracks"); if (!box) return;
   const mine = tracks.filter(t => t.creator === user.uid && !t.legacy).sort((a, b) => b.createdAt - a.createdAt);
@@ -1565,8 +1762,9 @@ function renderMyTracks() {
     r.innerHTML = `<span><b>${esc(t.title || "Uten navn")}</b>${t.replyTo ? " (svar)" : ""}<br><span class="hint">
       ${new Date(t.createdAt).toLocaleDateString("nb-NO")} · ${VIS[t.visibility] || ""}${isLocked(t) ? " · " + ACCESS_NAMES[accessOf(t)].toLowerCase() : ""} · ${trackRadius(t)} m${t.review === "pending" ? " · <b>venter på godkjenning</b>" : t.review === "rejected" ? ` · <b>avvist</b>${t.reviewNote ? ": " + esc(t.reviewNote) : ""}` : ""}${t.seqName ? ` · ${esc(t.seqName)} #${t.seqNo}` : ""}<br>
       Score ${Math.round(quality(t) * 100)} % · ${Math.round(d.s)} startet · ${Math.round(d.c)} hørt ferdig · ${replies} svar</span></span>
-      <button>Vis</button><button>Slett</button>`;
-    const [show, del] = r.querySelectorAll("button");
+      <button>Vis</button><button>Rediger</button><button>Slett</button>`;
+    const [show, edit, del] = r.querySelectorAll("button");
+    edit.onclick = () => openRecorder({ edit: t });
     show.onclick = () => { $("prof-bg").classList.remove("show"); const p = t.replyTo ? byId.get(t.replyTo) || t : t; map.setView([p.lat, p.lng], 17); play(t); };
     del.onclick = async () => {
       if (!confirm(`Slette «${t.title || "sporet"}»?`)) return;
@@ -2106,27 +2304,56 @@ function canRecord() {
   if (!isReal()) { openProfile(); toast("Logg inn for å lage spor."); return false; }
   return true;
 }
-function openRecorder({ replyTo = null, recorded = null } = {}) {
+function openRecorder({ replyTo = null, recorded = null, edit = null } = {}) {
   if (!canRecord()) return;
-  Object.assign(R, { kind: "audio", blob: null, mime: "", duration: 0, replyTo, pos: recorded ? "map" : (me ? "me" : "map"), vis: canPublic() ? "public" : "friends", access: "map", cats: new Set() });
-  if (!recorded) R.crossPos = null;
-  $("rec-title").textContent = replyTo ? `Svar på «${replyTo.title || "spor"}»` : "Nytt lydspor";
+  if (edit && edit.visibility === "public" && !canPublic()) { toast("Spor som er delt med alle kan bare endres av autoriserte brukere. Kontakt en administrator.", 5000); return; }
+  Object.assign(R, { kind: edit ? (edit.kind || "audio") : "audio", blob: null, mime: "", duration: 0, replyTo: edit ? (edit.replyTo ? byId.get(edit.replyTo) || { id: edit.replyTo } : null) : replyTo,
+    edit, pos: edit ? "keep" : recorded ? "map" : (me ? "me" : "map"), vis: canPublic() ? "public" : "friends", access: "map", accessTouched: !!edit, cats: new Set() });
+  if (!recorded && !edit) R.crossPos = null;
+  if (edit) R.crossPos = null;
+  replyTo = R.replyTo;
+  $("rec-title").textContent = edit ? "Rediger spor" : replyTo ? `Svar på «${replyTo.title || "spor"}»` : "Nytt lydspor";
   ["rec-name", "rec-desc", "rec-tags", "rec-textarea", "rec-seq-name", "rec-code", "rec-reveal", "rec-tlimit"].forEach(id => $(id).value = "");
   $("rec-timed").checked = false; $("rec-timed-box").style.display = "none"; $("rec-limit-box").style.display = "none"; $("rec-reveal-box").style.display = "none";
-  if (replyTo) $("rec-name").value = "Svar: " + (replyTo.title || "");
-  $("rec-img").value = ""; $("rec-img-prev").style.display = "none"; $("rec-img-txt").style.display = ""; $("rec-more").open = false;
+  if (replyTo && !edit) $("rec-name").value = "Svar: " + (replyTo.title || "");
+  $("rec-img").value = ""; $("rec-img-prev").style.display = "none"; $("rec-img-txt").style.display = ""; $("rec-more").open = !!edit;
   $("rec-rights").checked = false; $("rec-tags").style.display = "none";
   $("rec-radius").max = maxRadius(); $("rec-radius").value = DEFAULT_RADIUS;
   $("rec-preview").style.display = "none"; $("rec-time").textContent = fmtTime(maxSeconds()); $("rec-time").classList.remove("warn"); $("rec-err").textContent = "";
   $("rec-limit").textContent = `Maks ${fmtTime(maxSeconds())}. Støy dempes automatisk av nettleseren.`;
   $("rec-adv-place").style.display = replyTo ? "none" : "";
   $("rec-cat-box").style.display = replyTo ? "none" : "";
-  renderCats();
+  $("rec-edit-note").style.display = edit && R.kind === "audio" ? "" : "none";
+  $("rec-switch").parentElement.style.display = edit ? "none" : "";
+  $("rec-pos-keep").style.display = edit ? "" : "none";
+  $("rec-code-clear").checked = false; $("rec-code-clear-box").style.display = edit?.codeHash?.length ? "flex" : "none";
+  $("rec-code").placeholder = edit?.codeHash?.length ? "Nytt svar – la stå tomt for å beholde det gamle" : "F.eks. 1814 – flere svar skilles med /";
+  $("rec-seq-help").open = false; $("rec-code").disabled = false;
   // Sekvenser jeg har laget
-  const mine = {}; tracks.filter(t => t.creator === user.uid && t.seqId).forEach(t => { mine[t.seqId] = { name: t.seqName, n: Math.max(mine[t.seqId]?.n || 0, t.seqNo) }; });
-  $("rec-seq").innerHTML = `<option value="">Ingen sekvens</option>${Object.entries(mine).map(([id, s]) => `<option value="${id}">${esc(s.name)} (neste blir #${s.n + 1})</option>`).join("")}<option value="new">+ Ny sekvens …</option>`;
+  const mine = {}; tracks.filter(t => t.creator === user.uid && t.seqId && !t.archived).forEach(t => { mine[t.seqId] = { name: t.seqName, n: Math.max(mine[t.seqId]?.n || 0, t.seqNo) }; });
+  $("rec-seq").innerHTML = `<option value="">Ingen sekvens</option>${Object.entries(mine).map(([id, q]) => `<option value="${id}">${esc(q.name)}${edit?.seqId === id ? ` (dette sporet er #${edit.seqNo})` : ` (neste blir #${q.n + 1})`}</option>`).join("")}<option value="new">+ Ny sekvens …</option>`;
   $("rec-seq-name").style.display = "none";
-  setKind("audio"); setPos(R.pos); setVis(R.vis); setAccess("map"); setRadius(DEFAULT_RADIUS);
+  // Den offentlige knappen skjules ved redigering for brukere som ikke kan dele med alle (godkjenning kan ikke sendes på nytt herfra)
+  $("rec-vis").querySelector('[data-v="public"]').style.display = edit && !canPublic() && edit.review !== "pending" ? "none" : "";
+  if (edit) {
+    $("rec-name").value = edit.title || ""; $("rec-desc").value = edit.desc || "";
+    const known = (edit.tags || []).filter(c => CATEGORIES.includes(c)), own = (edit.tags || []).filter(c => !CATEGORIES.includes(c));
+    known.forEach(c => R.cats.add(c));
+    if (own.length) { $("rec-tags").value = own.join(", "); $("rec-tags").style.display = ""; }
+    if (R.kind === "text") { $("rec-textarea").value = edit.text || ""; $("rec-rights").checked = true; $("rec-textarea").oninput(); }
+    if (edit.imageUrl) { $("rec-img-prev").src = edit.imageUrl; $("rec-img-prev").style.display = "block"; $("rec-img-txt").style.display = "none"; }
+    R.vis = edit.review === "pending" ? "public" : (edit.visibility || "friends");
+    R.access = accessOf(edit);
+    $("rec-reveal").value = edit.codeReveal || "";
+    $("rec-reveal-box").style.display = edit.codeHash?.length ? "" : "none";
+    $("rec-seq").value = edit.seqId && mine[edit.seqId] ? edit.seqId : "";
+  }
+  renderCats();
+  setKind(R.kind);
+  if (edit) $("rec-audio").style.display = "none";
+  setPos(R.pos); setVis(R.vis); setAccess(R.access); setRadius(edit ? (edit.radius || DEFAULT_RADIUS) : DEFAULT_RADIUS);
+  R.accessTouched = !!edit;
+  $("rec-seq").onchange(true);
   if (recorded) {
     Object.assign(R, recorded);
     $("rec-preview").src = URL.createObjectURL(R.blob); $("rec-preview").style.display = "block";
@@ -2135,6 +2362,41 @@ function openRecorder({ replyTo = null, recorded = null } = {}) {
   $("rec-bg").classList.add("show");
   if (recorded) setTimeout(() => $("rec-name").focus(), 300);
 }
+// ---- Oversikt over sekvensen i skjemaet: postene, hvordan de finnes, og råd hvis oppsettet ikke gir «én og én» ----
+const ACCESS_ICON = { map: "👁", locked: "🔒", hidden: "🗝" };
+// Postene i sekvensen slik de blir når skjemaet lagres (dette sporet satt inn på valgt nummer)
+function formSeqPlan() {
+  const sv = $("rec-seq").value;
+  if (!sv || R.replyTo) return null;
+  const hasCode = $("rec-code-clear").checked ? false : !!($("rec-code").value.trim() || R.edit?.codeHash?.length);
+  const self = { self: true, title: $("rec-name").value.trim() || "Dette sporet", access: R.access, code: hasCode, radius: +$("rec-radius").value };
+  const others = sv === "new" ? [] : tracks.filter(t => t.seqId === sv && !t.archived && t.id !== R.edit?.id).sort((a, b) => a.seqNo - b.seqNo)
+    .map(t => ({ title: t.title || "Uten navn", access: accessOf(t), code: !!t.codeHash?.length, radius: trackRadius(t) }));
+  let at = sv === "new" ? 1 : parseInt($("rec-seqno").value, 10) || others.length + 1;
+  at = Math.max(1, Math.min(others.length + 1, at));
+  others.splice(at - 1, 0, self);
+  const timed = sv === "new" ? $("rec-timed").checked : !!seqMeta[sv]?.timed;
+  return { list: others, at, timed };
+}
+function seqAdvice(list, timed) {
+  const tips = [];
+  if (list.length && list[0].access === "map") tips.push("Post 1 vises i kartet og kan høres hjemmefra. Velg 🔒 Må være der hvis deltakerne skal gå dit.");
+  if (list.length && list[0].access === "hidden") tips.push("Post 1 er skjult, så ingen ser hvor sekvensen starter. Velg 🔒 Må være der hvis den skal synes i kartet.");
+  const shown = list.slice(1).map((p, i) => p.access !== "hidden" ? i + 2 : null).filter(Boolean);
+  if (shown.length) tips.push(`Post ${shown.join(", ")} vises i kartet fra start. Velg 🗝 Skjult hvis postene skal dukke opp én og én.`);
+  if (timed) { const small = list.map((p, i) => p.radius < 25 ? i + 1 : null).filter(Boolean); if (small.length) tips.push(`Post ${small.join(", ")} har radius under 25 m. Med tidtaking kan det være vanskelig å treffe med GPS – 30 m eller mer er tryggere.`); }
+  return tips;
+}
+function seqListHtml(list, opts = {}) {
+  return list.map((p, i) => `<div class="post ${p.self ? "me" : ""}"><span class="n">${i + 1}.</span><span>${ACCESS_ICON[p.access] || ""}${p.code ? " ❓" : ""}</span><span style="flex:1">${esc(p.title)}${p.self ? " ← dette sporet" : ""}</span>${opts.radius ? `<span class="hint">${p.radius} m</span>` : ""}</div>`).join("");
+}
+function renderSeqOverview() {
+  const box = $("rec-seq-ov"), plan = formSeqPlan();
+  if (!plan) { box.innerHTML = ""; return; }
+  const tips = seqAdvice(plan.list, plan.timed);
+  const ok = plan.list.length > 1 && !tips.length ? '<div class="seq-ok">✔ Postene dukker opp én og én etter hvert som de løses.</div>' : "";
+  box.innerHTML = `<div class="seq-ov"><div class="hint" style="margin:0 0 .25rem">Slik blir sekvensen · 👁 i kartet · 🔒 må være der · 🗝 skjult · ❓ spørsmål</div>${seqListHtml(plan.list)}${tips.map(x => `<div class="seq-warn">⚠ ${esc(x)}</div>`).join("")}${ok}</div>`;
+}
 function setKind(k) {
   R.kind = k;
   $("rec-switch").textContent = k === "audio" ? "Vil du heller skrive en tekst som leses opp?" : "Vil du heller ta opp lyd?";
@@ -2142,11 +2404,28 @@ function setKind(k) {
   $("rec-text").style.display = k === "text" ? "" : "none";
 }
 function setPos(p) {
-  if (p === "me" && !me) { toast("Slå på gå-modus for å bruke posisjonen din, eller velg midt i kartet."); p = "map"; }
+  if (p === "me" && !me) { toast("Slå på gå-modus for å bruke posisjonen din, eller velg et sted i kartet."); p = R.edit ? "keep" : "map"; }
+  if (p === "keep" && !R.edit) p = "map";
   R.pos = p; seg("rec-pos", "p", p);
-  const c = p === "me" ? me : (R.crossPos || map.getCenter());
-  $("rec-pos-hint").textContent = p === "map" ? `Der krysset stod (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}). Flytt kartet og hold krysset inne for å velge et annet sted.` : `Der du står nå (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}).`;
+  const c = p === "keep" ? R.edit : p === "me" ? me : (R.crossPos || map.getCenter());
+  $("rec-pos-hint").textContent = p === "keep" ? "Sporet blir stående der det er." : p === "map" ? `Der krysset stod (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}).` : `Der du står nå (${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}).`;
 }
+// Velg sted: skjemaet skjules, man flytter kartet til krysset står riktig og trykker «Her»
+function pickPlace() {
+  const c = R.pos === "keep" && R.edit ? R.edit : R.pos === "me" && me ? me : (R.crossPos || map.getCenter());
+  $("rec-bg").classList.remove("show");
+  if (current) { $("player").classList.remove("show"); document.body.classList.remove("has-player"); }
+  map.setView([c.lat, c.lng], Math.max(map.getZoom(), 17));
+  document.body.classList.add("picking"); $("pick").classList.add("show");
+}
+function endPick(ok) {
+  document.body.classList.remove("picking"); $("pick").classList.remove("show");
+  if (ok) { R.crossPos = map.getCenter(); setPos("map"); }
+  $("rec-bg").classList.add("show");
+}
+$("rec-pick").onclick = e => { e.preventDefault(); pickPlace(); };
+$("pick-ok").onclick = () => endPick(true);
+$("pick-cancel").onclick = () => endPick(false);
 function setVis(v) {
   R.vis = v; seg("rec-vis", "v", v);
   $("rec-vis-hint").textContent = v === "private" ? "Bare du kan høre sporet."
@@ -2155,9 +2434,9 @@ function setVis(v) {
 }
 function setAccess(a) {
   R.access = a; seg("rec-access", "a", a);
-  $("rec-access-hint").textContent = a === "map" ? "Sporet vises i kartet og kan høres hvor som helst."
-    : a === "locked" ? "Sporet vises med hengelås. Man må være innenfor radiusen én gang for å låse det opp – deretter kan det høres hvor som helst."
-    : "Sporet vises ikke i kartet. Det dukker opp og låses opp når noen er innenfor radiusen.";
+  $("rec-access-hint").innerHTML = a === "map" ? "<b>👁 I kartet:</b> alle ser sporet og kan høre det hvor som helst, også hjemmefra."
+    : a === "locked" ? "<b>🔒 Må være der:</b> sporet står i kartet med hengelås. Man må gå dit for å høre det. Etterpå kan det høres hvor som helst."
+    : "<b>🗝 Skjult:</b> sporet synes ikke i kartet før man er der. I en sekvens dukker det opp når forrige post er løst.";
   updateSummary();
 }
 function setRadius(r) {
@@ -2167,7 +2446,9 @@ function setRadius(r) {
 }
 function updateSummary() {
   const seqTxt = $("rec-seq").value === "new" ? ($("rec-timed").checked ? "ny sekvens med tidtaking" : "ny sekvens") : $("rec-seq").value ? "i sekvens" : "ingen sekvens";
-  $("rec-sum").textContent = R.replyTo ? "" : ` · Radius ${$("rec-radius").value} m · ${ACCESS_NAMES[R.access]} · ${seqTxt}${$("rec-code").value.trim() ? " · kodeord" : ""}`;
+  const hasCode = !$("rec-code-clear").checked && ($("rec-code").value.trim() || R.edit?.codeHash?.length);
+  $("rec-sum").textContent = R.replyTo ? "" : ` · Radius ${$("rec-radius").value} m · ${ACCESS_NAMES[R.access]} · ${seqTxt}${hasCode ? " · kodeord" : ""}`;
+  renderSeqOverview();
 }
 function renderCats() {
   const box = $("rec-cats"); box.innerHTML = "";
@@ -2189,15 +2470,25 @@ $("rec-img").onchange = () => {
 };
 $("rec-pos").onclick = e => e.target.dataset.p && setPos(e.target.dataset.p);
 $("rec-vis").onclick = e => e.target.dataset.v && setVis(e.target.dataset.v);
-$("rec-seq").onchange = () => {
-  const isNew = $("rec-seq").value === "new";
+$("rec-seq").onchange = (init) => {
+  const sv = $("rec-seq").value, isNew = sv === "new";
   $("rec-seq-name").style.display = isNew ? "" : "none";
   $("rec-timed-box").style.display = isNew ? "" : "none";   // tidtaking velges når sekvensen lages
+  // Nummer i sekvensen: neste ledige for nye spor, nåværende ved redigering
+  const others = sv && !isNew ? tracks.filter(t => t.seqId === sv && !t.archived && t.id !== R.edit?.id) : [];
+  $("rec-seqno-box").style.display = sv && !isNew ? "" : "none";
+  if (sv && !isNew) { $("rec-seqno").max = others.length + 1; $("rec-seqno").value = R.edit?.seqId === sv ? R.edit.seqNo : others.length + 1; }
+  // Fornuftig standard for hvordan posten finnes: første post må man gå til, de neste er skjult til forrige er løst
+  if (init !== true && !R.accessTouched && sv) setAccess(isNew || +$("rec-seqno").value === 1 ? "locked" : "hidden");
+  if (sv && init !== true && !R.edit) $("rec-seq-help").open = !tracks.some(t => t.creator === user.uid && t.seqId);   // første gang: vis forklaringen
   updateSummary();
 };
+$("rec-seqno").oninput = () => updateSummary();
+$("rec-code-clear").onchange = () => { $("rec-code").disabled = $("rec-code-clear").checked; updateSummary(); };
 $("rec-timed").onchange = () => { $("rec-limit-box").style.display = $("rec-timed").checked ? "" : "none"; updateSummary(); };
-$("rec-code").oninput = () => { $("rec-reveal-box").style.display = $("rec-code").value.trim() ? "" : "none"; updateSummary(); };
-$("rec-access").onclick = e => e.target.dataset.a && setAccess(e.target.dataset.a);
+$("rec-code").oninput = () => { $("rec-reveal-box").style.display = $("rec-code").value.trim() || R.edit?.codeHash?.length ? "" : "none"; updateSummary(); };
+$("rec-name").addEventListener("input", () => $("rec-seq").value && renderSeqOverview());
+$("rec-access").onclick = e => { const b = e.target.closest("[data-a]"); if (b) { R.accessTouched = true; setAccess(b.dataset.a); } };
 $("rec-radius").oninput = () => setRadius(+$("rec-radius").value);
 $("rec-textarea").oninput = () => {
   const n = ($("rec-textarea").value.match(/\S+/g) || []).length;
@@ -2255,6 +2546,7 @@ $("rec-save").onclick = async () => {
   const err = $("rec-err"); err.textContent = "";
   const title = $("rec-name").value.trim();
   if (!title) { err.textContent = "Gi sporet en tittel."; return; }
+  if (R.edit) return saveEdit(title);
   let text = "";
   if (R.kind === "audio") {
     if (R.recorder) stopRecording();
@@ -2277,6 +2569,8 @@ $("rec-save").onclick = async () => {
     } else {
       const same = tracks.filter(t => t.seqId === sv);
       seqId = sv; seqName = same[0]?.seqName || "Sekvens"; seqNo = Math.max(0, ...same.map(t => t.seqNo)) + 1;
+      const want = parseInt($("rec-seqno").value, 10);
+      if (want >= 1 && want < seqNo) seqNo = want - 0.5;   // settes inn foran; nummereres om etter lagring
     }
   }
   let seqTimed = false, seqLimit = null;
@@ -2321,9 +2615,13 @@ $("rec-save").onclick = async () => {
       replyTo: R.replyTo ? R.replyTo.id : null, wasHere: R.replyTo && unlocks[R.replyTo.id] ? unlocks[R.replyTo.id] : null,
       label: "local", loud, createdAt: Date.now()
     };
+    const half = seqId && seqNo % 1 !== 0;
+    if (half) data.seqNo = Math.ceil(seqNo);
     await fb.setDoc(fb.doc(fb.db, "sp_tracks", id), data);
     if (R.replyTo) await bump(R.replyTo.id, "r", { boost: Date.now() + REPLY_BOOST_DAYS * DAY });
-    setTracks([...tracks, normTrack(id, data)]);
+    const added = normTrack(id, data);
+    if (half) { added.seqNo = seqNo; setTracks([...tracks, added]); await renumberSeq(seqId); }
+    else setTracks([...tracks, added]);
     // Vis det nye sporet litt over krysset, så det ikke skjules
     if (!R.replyTo) { map.setView([data.lat, data.lng], Math.max(map.getZoom(), 16), { animate: false }); map.panBy([0, 90], { animate: false }); }
     $("rec-bg").classList.remove("show");
@@ -2332,6 +2630,101 @@ $("rec-save").onclick = async () => {
   } catch (e) { err.textContent = "Kunne ikke lagre: " + (e.code || e.message); }
   btn.disabled = false; btn.textContent = "Lagre";
 };
+// ---- Lagre endringer i et eksisterende spor ----
+async function saveEdit(title) {
+  const err = $("rec-err"), t = R.edit;
+  const upd = { title, desc: $("rec-desc").value.trim() };
+  if (!R.replyTo) {
+    upd.tags = [...new Set([...R.cats, ...$("rec-tags").value.split(",").map(x => x.trim().toLowerCase()).filter(Boolean)])];
+    upd.radius = Math.min(maxRadius(), clampRadius(+$("rec-radius").value));
+    upd.access = R.access; upd.hidden = R.access === "hidden";
+    if (R.pos === "me" && me) { upd.lat = me.lat; upd.lng = me.lng; }
+    else if (R.pos === "map") { const c = R.crossPos || map.getCenter(); upd.lat = c.lat; upd.lng = c.lng; }
+  }
+  // Hvem kan høre det (godkjenningsstatus kan ikke endres herfra)
+  if (t.review !== "pending") {
+    const v = R.vis === "public" && !canPublic() ? t.visibility : R.vis;
+    upd.visibility = v;
+    upd.allowed = v === "friends" ? members.map(m => m.uid) : (v === "public" ? [] : []);
+  }
+  if (R.kind === "text") {
+    const text = $("rec-textarea").value.trim(), n = (text.match(/\S+/g) || []).length, max = Math.round(WORDS_PER_90S * maxSeconds() / 90);
+    if (!n) { err.textContent = "Teksten kan ikke være tom."; return; }
+    if (n > max) { err.textContent = `Teksten er for lang (${n} ord, maks ${max}).`; return; }
+    upd.text = text; upd.duration = Math.round(n / WORDS_PER_90S * 90);
+  }
+  // Kodeord: tomt felt beholder det gamle svaret
+  if (!R.replyTo) {
+    if ($("rec-code-clear").checked) { upd.codeHash = null; upd.codeReveal = null; }
+    else {
+      const raw = $("rec-code").value.trim();
+      if (raw) upd.codeHash = await codeHashes(raw);
+      if (raw || t.codeHash?.length) upd.codeReveal = $("rec-reveal").value.trim() || null;
+    }
+  }
+  // Sekvens
+  const sv = R.replyTo ? (t.seqId || "") : $("rec-seq").value;
+  const oldSeq = t.seqId || null;
+  let newSeq = oldSeq, wantNo = null;
+  if (!R.replyTo) {
+    if (!sv) { upd.seqId = null; upd.seqName = null; upd.seqNo = 0; upd.seqTimed = false; upd.seqLimit = null; newSeq = null; }
+    else if (sv === "new") {
+      const name = $("rec-seq-name").value.trim();
+      if (!name) { err.textContent = "Gi sekvensen et navn."; return; }
+      let lim = null;
+      if ($("rec-timed").checked) { const l = $("rec-tlimit").value.trim(); if (l) { lim = Math.round(parseFloat(l.replace(",", "."))); if (!(lim > 0 && lim <= 1440)) { err.textContent = "Tidsfristen må være et antall minutter (1–1440), eller tom."; return; } } }
+      newSeq = "seq-" + randomCode(12);
+      Object.assign(upd, { seqId: newSeq, seqName: name, seqNo: 1, seqTimed: $("rec-timed").checked, seqLimit: lim });
+    } else {
+      newSeq = sv;
+      const same = tracks.filter(x => x.seqId === sv && x.id !== t.id && !x.archived);
+      wantNo = Math.max(1, Math.min(same.length + 1, parseInt($("rec-seqno").value, 10) || same.length + 1));
+      if (sv !== oldSeq) Object.assign(upd, { seqId: sv, seqName: same[0]?.seqName || "Sekvens", seqTimed: false, seqLimit: null });
+    }
+  }
+  const btn = $("rec-save"); btn.disabled = true; btn.textContent = "Lagrer …";
+  try {
+    const f = $("rec-img").files[0];
+    if (f) {
+      const r = fb.storageRef(fb.storage, `sp/${user.uid}/img/${t.id}-${Date.now().toString(36)}.jpg`);
+      await fb.uploadBytes(r, await resizeImage(f, 1200), { contentType: "image/jpeg" });
+      upd.imageUrl = await fb.getDownloadURL(r);
+    }
+    // Tidtakingen hører til sekvensen: flyttes sporet som bærer den, gis den videre til en annen post
+    const oldMeta = oldSeq && seqMeta[oldSeq];
+    const carry = oldSeq && newSeq !== oldSeq && t.seqTimed && oldMeta ? oldMeta.list.find(x => x.id !== t.id) : null;
+    if (wantNo != null) upd.seqNo = wantNo;
+    await fb.updateDoc(fb.doc(fb.db, "sp_tracks", t.id), upd);
+    Object.assign(t, upd);
+    if (wantNo != null) t.seqNo = wantNo - 0.5;   // foran den som har nummeret i dag; nummereres om under
+    if (carry) { await fb.updateDoc(fb.doc(fb.db, "sp_tracks", carry.id), { seqTimed: true, seqLimit: oldMeta.limit || null }); carry.seqTimed = true; carry.seqLimit = oldMeta.limit || null; }
+    setTracks([...tracks]);
+    if (newSeq) await renumberSeq(newSeq, t.id, wantNo);
+    if (oldSeq && oldSeq !== newSeq) await renumberSeq(oldSeq);
+    $("rec-bg").classList.remove("show");
+    toast("Endringene er lagret.", 3000);
+    if (document.getElementById("pf-tracks")) { renderMyTracks(); renderMySeqs(); }
+    if (current?.id === t.id) play(t);
+  } catch (e) { err.textContent = "Kunne ikke lagre: " + (e.code || e.message); }
+  btn.disabled = false; btn.textContent = "Lagre";
+}
+// Gir postene i en sekvens fortløpende nummer 1, 2, 3 … (sporet som nettopp er flyttet, får plassen det ble satt på)
+async function renumberSeq(seqId, movedId = null, movedNo = null) {
+  const list = tracks.filter(x => x.seqId === seqId && !x.archived && isOwn(x));
+  list.sort((a, b) => {
+    const na = a.id === movedId ? movedNo - 0.5 : a.seqNo, nb = b.id === movedId ? movedNo - 0.5 : b.seqNo;
+    return na - nb || a.createdAt - b.createdAt;
+  });
+  const changes = list.map((x, i) => ({ x, n: i + 1 })).filter(({ x, n }) => x.seqNo !== n);
+  for (const { x, n } of changes) {
+    try { await fb.updateDoc(fb.doc(fb.db, "sp_tracks", x.id), { seqNo: n }); x.seqNo = n; }
+    catch (e) { console.warn("Kunne ikke nummerere om", x.id, e); }
+  }
+  // Det lagrede nummeret på sporet som ble flyttet kan være feil til det er nummerert om; sett det lokalt også
+  list.forEach((x, i) => x.seqNo = i + 1);
+  setTracks([...tracks]);
+}
+
 // Trykk og hold på krysset: opptaket starter etter et kort hold og stopper når du slipper
 const cross = $("cross");
 const H = { timer: null, rec: null, stream: null, chunks: [], t0: 0, tick: null, released: false, mime: "" };
@@ -2453,7 +2846,8 @@ const USE_CASES = [
   { ico: "🏘", h: "Fortell om nabolaget ditt", txt: "Hvem bygde huset på hjørnet? Hva skjedde på løkka? Legg spor ved stedene, gjerne som en vandring i en sekvens.", how: "Spor ved hvert sted · gjerne sekvens", preset: { cats: ["lokalhistorie"] } },
   { ico: "🗣", h: "Dialektreisen fra sør til nord", txt: "Fortell en artig historie på din dialekt der du bor, og utfordre noen du kjenner til å gjøre det samme et annet sted. Så kan andre reise gjennom landet og følge dialektene.", how: "Kategori dialekt · 📣 Utfordre en venn", preset: { cats: ["dialekt"], vis: "public" } },
   { ico: "🕰", h: "Memory lane", txt: "Fortell et minne fra et sted, og utfordre venner til å fortelle sine minner fra samme sted med «💬 Svar». Som et fotoalbum – bare med ekte stemmer.", how: "Kategori minner · 📣 Utfordre · 💬 Svar", preset: { cats: ["minner"] } },
-  { ico: "🗝", h: "Rebusløp med gjemte spor", s: "Rebusløp med tidtaking", txt: "Gjem postene som skjulte spor i en sekvens. Hver post gir et hint og ber om et kodeord før neste post dukker opp. Slå på tidtaking og se hvem som er raskest.", how: "Skjult skattejakt · ny sekvens med tidtaking · kodeord", preset: { access: "hidden", seq: "Rebusløp", timed: true, cats: ["quiz"], radius: 25 } },
+  { ico: "❓", h: "Quizrunde i nabolaget", s: "Quizrunde i nabolaget", txt: "Lag en runde der deltakerne må gå til hver post for å høre spørsmålet. Første post står i kartet med hengelås. De neste er skjult og dukker opp én og én når forrige spørsmål er besvart.", how: "Ny sekvens · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Quizrunde", cats: ["quiz"], radius: 30 } },
+  { ico: "🗝", h: "Rebusløp med gjemte spor", s: "Rebusløp med tidtaking", txt: "Gjem postene som skjulte spor i en sekvens. Hver post gir et hint og ber om et kodeord før neste post dukker opp. Slå på tidtaking og se hvem som er raskest.", how: "Ny sekvens med tidtaking · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Rebusløp", timed: true, cats: ["quiz"], radius: 30 } },
   { ico: "⛵", h: "SoundPin-regatta", txt: "Legg ut spor som merker båtene må innom i rekkefølge. Del erfaringer om farvannet ved hvert merke – strøm, grunner, gode ankringsplasser. Tiden går fra første til siste merke, gjerne med tidsfrist.", how: "Ny sekvens med tidtaking · radius fra 20 m · kategori seiling", preset: { seq: "Regatta", timed: true, cats: ["seiling"], radius: 50 } }
 ];
 function openHelp() {
@@ -2498,7 +2892,7 @@ $("help-btn").onclick = () => { hideTeaser(); openHelp(); };
 // Kort animasjon ved oppstart: bruksområdene ruller forbi, og «?» blinker så man ser hvor de finnes
 const TS = { timer: null, i: 0 };
 function showTeaser() {
-  if (run || $("spw-hint").classList.contains("show")) return;
+  if (run || activeSeq || $("spw-hint").classList.contains("show")) return;
   TS.i = 0; $("spw-hint").classList.add("show"); $("help-btn").classList.add("pulse");
   const step = () => {
     const slot = $("ts-slot");
@@ -2523,6 +2917,7 @@ $("ts-x").onclick = e => { e.stopPropagation(); hideTeaser(); };
   const qs0 = new URLSearchParams(location.search);
   if (qs0.has("intro")) store.set("sp-intro-off", false);            // ?intro tvinger fram introduksjonen
   if (run && Date.now() - (run.start || 0) > 12 * 3600e3) { run = null; store.set("sp-run", null); }   // gamle løp glemmes
+  if (activeSeq && Date.now() - (activeSeq.start || 0) > 12 * 3600e3) { activeSeq = null; store.set("sp-active-seq", null); }   // og gamle sekvenser
   const introOff = store.get("sp-intro-off", false) === true;
   console.info("Oppstart", { versjon: APP_VERSION, introOff, run: !!run, search: location.search });
   if (!qs0.get("pin") && !qs0.get("venn")) {
