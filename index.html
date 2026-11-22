@@ -1172,12 +1172,15 @@ function checkNearby() {
   // Opptatt: noe spilles, eller spilleren står åpen for å lese eller svare
   // Et opplåst spor med ubesvart spørsmål holder spilleren åpen til svaret er riktig eller den lukkes (i bilmodus styrt av tidsgrensen)
   const waiting = current && !carMode && $("player").classList.contains("show") && needsAnswer(current) && isUnlocked(current);
-  const busy = current && ((!audio.paused && !audio.ended) || speaking || Date.now() < lingerUntil || waiting);
+  const hard = current && ((!audio.paused && !audio.ended) || speaking || lingerUntil === Infinity || waiting);
+  // Spilleren står åpen en stund etter avspilling; da kan bare neste post i sekvensen eller et spor du nettopp låste opp ta over
+  const lingering = current && Date.now() < lingerUntil;
   const pool = [...new Set([...visibleTracks(), ...opened])];
-  const cand = pool.map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d) || (opened.includes(x.t) && !isOwn(x.t)))
+  let cand = pool.map(t => ({ t, d: dist(me, t) })).filter(x => shouldTrigger(x.t, x.d) || (opened.includes(x.t) && (!isOwn(x.t) || inTest(x.t))))
     .sort((a, b) => (isFollowed(b.t) - isFollowed(a.t)) || (a.d - b.d));   // fulgte innspillere går foran
-  if (carMode) $("car-next").textContent = cand[0] && !busy ? "" : nextAheadText();
-  if (busy || !cand.length) return;
+  if (lingering && !hard) cand = cand.filter(x => opened.includes(x.t) || (activeSeq && x.t.seqId === activeSeq.id && x.t !== current));
+  if (carMode) $("car-next").textContent = cand[0] && !hard ? "" : nextAheadText();
+  if (hard || !cand.length) return;
   play(cand[0].t);
 }
 function nextAheadText() {
