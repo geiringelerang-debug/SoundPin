@@ -234,7 +234,7 @@
   /* Oversikt over postene i en sekvens */
   .seq-ov { margin: .4rem 0; padding: .5rem .6rem; background: #f6f6f8; border-radius: 10px; font-size: .85rem; }
   .seq-ov .post { display: flex; gap: .45rem; align-items: baseline; padding: .12rem 0; }
-  .seq-ov .post.me { font-weight: 700; }
+  .seq-ov .post.self { font-weight: 700; }
   .seq-ov .n { width: 1.4rem; text-align: right; color: #666; flex: none; }
   .seq-warn { color: #a04a00; font-size: .82rem; margin-top: .35rem; }
   .seq-ok { color: #1e7d32; font-size: .82rem; margin-top: .35rem; }
@@ -448,8 +448,8 @@
     <div class="hint" id="rec-access-hint"></div>
     <div id="rec-revealmode-box" style="display:none">
       <div class="seg" id="rec-revealmode" style="margin-top:.4rem">
-        <button data-r="prev">Dukker opp når forrige er løst</button>
-        <button data-r="site">Bare når man står der</button>
+        <button data-r="prev">Når forrige er løst</button>
+        <button data-r="site">Bare på stedet</button>
       </div>
       <div class="hint" id="rec-revealmode-hint"></div>
     </div>
@@ -551,7 +551,7 @@ const DAY = 864e5;
 const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
 const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
 const ARCHIVE_NAME = "SoundPin-arkivet";
-const APP_VERSION = "7.0";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
+const APP_VERSION = "7.1";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
 
 // ================= Tilstand =================
 const store = {
@@ -2418,7 +2418,7 @@ function seqAdvice(list, timed) {
   return tips;
 }
 function seqListHtml(list, opts = {}) {
-  return list.map((p, i) => `<div class="post ${p.self ? "me" : ""}"><span class="n">${i + 1}.</span><span>${p.site ? "🕳" : ACCESS_ICON[p.access] || ""}${p.code ? " ❓" : ""}</span><span style="flex:1">${esc(p.title)}${p.self ? " ← dette sporet" : ""}</span>${opts.radius ? `<span class="hint">${p.radius} m</span>` : ""}</div>`).join("");
+  return list.map((p, i) => `<div class="post ${p.self ? "self" : ""}"><span class="n">${i + 1}.</span><span>${p.site ? "🕳" : ACCESS_ICON[p.access] || ""}${p.code ? " ❓" : ""}</span><span style="flex:1">${esc(p.title)}${p.self ? " ← dette sporet" : ""}</span>${opts.radius ? `<span class="hint">${p.radius} m</span>` : ""}</div>`).join("");
 }
 function renderSeqOverview() {
   const box = $("rec-seq-ov"), plan = formSeqPlan();
@@ -2477,8 +2477,8 @@ function setRadius(r) {
 function setReveal(r) {
   R.reveal = r; seg("rec-revealmode", "r", r);
   $("rec-revealmode-hint").textContent = r === "site"
-    ? "Posten synes ikke i kartet før deltakeren er innenfor radiusen. Forklar i forrige post hvor den er. Avstanden til posten vises hele tiden. Radius på 25–30 m eller mer gjør den lettere å treffe."
-    : "Posten dukker opp i kartet (med lås) når forrige post er besvart eller hørt.";
+    ? "Bare på stedet: posten synes ikke i kartet før deltakeren er innenfor radiusen. Forklar i forrige post hvor den er. Avstanden til posten vises hele tiden. Radius på 25–30 m eller mer gjør den lettere å treffe."
+    : "Når forrige er løst: posten dukker opp i kartet (med lås) når forrige post er besvart eller hørt.";
   updateSummary();
 }
 $("rec-revealmode").onclick = e => { const b = e.target.closest("[data-r]"); if (b) setReveal(b.dataset.r); };
