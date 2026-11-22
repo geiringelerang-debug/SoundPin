@@ -1774,7 +1774,7 @@ function renderMyTracks() {
     show.onclick = () => { $("prof-bg").classList.remove("show"); const p = t.replyTo ? byId.get(t.replyTo) || t : t; map.setView([p.lat, p.lng], 17); play(t); };
     del.onclick = async () => {
       if (!confirm(`Slette «${t.title || "sporet"}»?`)) return;
-      try { await fb.deleteDoc(fb.doc(fb.db, "sp_tracks", t.id)); setTracks(tracks.filter(x => x.id !== t.id)); renderMyTracks(); toast("Sporet er slettet."); }
+      try { await fb.deleteDoc(fb.doc(fb.db, "sp_tracks", t.id)); setTracks(tracks.filter(x => x.id !== t.id)); renderMyTracks(); renderMySeqs(); toast("Sporet er slettet."); }
       catch (e) { toast("Kunne ikke slette: " + (e.code || e.message)); }
     };
     box.appendChild(r);
