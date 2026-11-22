@@ -213,6 +213,9 @@
   #run button { padding: .2rem .6rem; font-size: .75rem; background: #fff3; color: #fff; }
   body.car #run { top: calc(env(safe-area-inset-top) + .8rem); font-size: 1.1rem; }
   #run.test { background: #c25e00ee; }
+  #run { max-width: calc(100vw - 1rem); box-sizing: border-box; }
+  #run-txt { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 auto; }
+  #run button { flex: none; }
   /* Når båndet vises, holdes toppen av spilleren (med ✕) under båndet */
   body.has-run #player { max-height: calc(100vh - 12.6rem); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 12.6rem); }
   #run.fin { background: #1e7d32ee; }
