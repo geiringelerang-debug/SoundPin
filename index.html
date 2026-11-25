@@ -551,7 +551,7 @@ const DAY = 864e5;
 const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
 const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
 const ARCHIVE_NAME = "SoundPin-arkivet";
-const APP_VERSION = "7.1";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
+const APP_VERSION = "7.2";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
 
 // ================= Tilstand =================
 const store = {
@@ -869,7 +869,7 @@ const gainDb = t => t.loud == null ? 0 : Math.max(GAIN_MIN_DB, Math.min(GAIN_MAX
 // Sjekker om Storage-bøtta tillater CORS. Uten det kan Web Audio ikke lese lyden (stille på iPhone), og vi kan bare dempe, ikke forsterke.
 async function probeCors(url) {
   if (!url) return false;
-  try { const r = await fetch(url, { method: "HEAD", mode: "cors" }); return r.ok; } catch { return false; }
+  try { const r = await fetch(url, { method: "HEAD", mode: "cors" }); return true; } catch { return false; }   // alle svar (også 404 for slettede filer) betyr at CORS slapp gjennom
 }
 // Lydgraf: <audio> → forsterker → begrenser (mot skurring) → høyttaler. Lages første gang brukeren starter et spor.
 function ensureAudioGraph() {
