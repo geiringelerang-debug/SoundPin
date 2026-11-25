@@ -1,5 +1,5 @@
 rules_version = '2';
-// SoundPin – Firestore-regler (versjon 5)
+// SoundPin – Firestore-regler (versjon 8)
 // Limes inn i Firebase-konsollen: Build → Firestore Database → Rules → Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -24,7 +24,18 @@ service cloud.firestore {
         || (realUser() && hasProfile() && profile().role == 'admin');
     }
     function canPublic() {
-      return isAdmin() || (realUser() && hasProfile() && profile().role in ['authorized', 'verifier', 'admin']);
+      return isAdmin() || (realUser() && hasProfile() && profile().role in ['authorized', 'official', 'verifier', 'admin']);
+    }
+    // «Sikkerhet og myndighetsinfo» er bare for offentlige organer (rollen «official») og admin
+    function canOfficial() {
+      return isAdmin() || (realUser() && hasProfile() && profile().role == 'official');
+    }
+    // Kategorier: høyst to av de ni faste
+    function okCats(d) {
+      return !('cats' in d) || d.cats == null
+        || (d.cats is list && d.cats.size() <= 2
+            && d.cats.hasOnly(['practical', 'visit', 'history', 'nature', 'memories', 'local', 'arts', 'fun', 'official'])
+            && (!('official' in d.cats) || canOfficial()));
     }
     function isVerifier() {
       return isAdmin() || (realUser() && hasProfile() && profile().role in ['verifier', 'admin']);
@@ -103,14 +114,14 @@ service cloud.firestore {
         && (request.resource.data.visibility != 'public' || canPublic())
         && (!('review' in request.resource.data) || request.resource.data.review in [null, 'pending'])
         && request.resource.data.label == 'local'
-        && okRadius(request.resource.data) && okAccess(request.resource.data);
+        && okRadius(request.resource.data) && okAccess(request.resource.data) && okCats(request.resource.data);
       allow update: if (realUser() && resource.data.creator == request.auth.uid
                         && request.resource.data.creator == resource.data.creator
                         && request.resource.data.label == resource.data.label
                         && request.resource.data.get('review', null) == resource.data.get('review', null)
                         && request.resource.data.get('archived', false) == resource.data.get('archived', false)
                         && (request.resource.data.visibility != 'public' || canPublic())
-                        && okRadius(request.resource.data) && okAccess(request.resource.data))
+                        && okRadius(request.resource.data) && okAccess(request.resource.data) && okCats(request.resource.data))
                     // Verifikatorer og admin: godkjenne, avvise, verifisere og trekke tilbake
                     || (isVerifier()
                         && request.resource.data.diff(resource.data).affectedKeys()
@@ -129,6 +140,40 @@ service cloud.firestore {
       allow read: if true;
       allow write: if signedIn()
         && request.resource.data.keys().hasOnly(['s', 'c', 'r', 'u', 't', 'boost']);
+    }
+
+    // ---- Logg per avspilling (grunnlag for å forbedre lyttescoren). Bare admin kan lese. ----
+    match /sp_events/{id} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['track', 'uid', 'reason', 'heard', 'dur', 'mode', 'site', 'speed', 'at'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.track is string
+        && request.resource.data.reason in ['completed', 'closed', 'switched', 'replaced', 'left', 'stalled', 'error', 'other']
+        && request.resource.data.mode in ['move', 'activity', 'sofa'];
+      allow read, delete: if isAdmin();
+    }
+
+    // ---- «Ikke riktig lenger»: hvem som har meldt et spor. Hver bruker kan legge til seg selv én gang. ----
+    match /sp_flags/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['by', 'at'])
+        && request.resource.data.by == [request.auth.uid];
+      allow update: if signedIn()
+        && request.resource.data.keys().hasOnly(['by', 'at'])
+        && request.resource.data.by.hasAll(resource.data.by)
+        && request.resource.data.by.size() == resource.data.by.size() + 1
+        && request.auth.uid in request.resource.data.by
+        && !(request.auth.uid in resource.data.by);
+      // Admin eller eieren av sporet kan nullstille når sporet er sjekket
+      allow delete: if isAdmin()
+        || (signedIn() && get(/databases/$(database)/documents/sp_tracks/$(id)).data.creator == request.auth.uid);
+    }
+
+    // ---- Innstillinger admin styrer (f.eks. skjulte merker) ----
+    match /sp_config/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // ---- Resultater for sekvenser med tidtaking ----

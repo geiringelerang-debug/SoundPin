@@ -2,6 +2,18 @@
 
 En tjeneste som leser opp historier om nærmiljøet mens du beveger deg ute.
 
+## Versjon 8 (25. november 2026)
+
+- **Oppdatering:** appen sjekker ved oppstart, når den kommer tilbake i forgrunnen, og hver halvtime om det finnes en nyere `APP_VERSION`. Da vises «Ny versjon X – trykk for å oppdatere», men ikke mens en sekvens eller et løp pågår.
+- **Lyttescore:** et bevisst avbrudd (✕ eller et annet spor valgt) teller som avbrutt, med dobbel vekt de første 20 sekundene. Et teknisk avbrudd teller ikke. Fullført lytting på stedet teller 1,5 og på «Må være der»-spor 2, mens lytting hjemmefra teller 1. Hver avspilling logges i `sp_events`.
+- **Modus:** 🛋 Sofa, 🚶 Forflytning (GPS) og 🧩 Aktivitet (bare quiz, rebus og løp).
+- **Ni faste kategorier** (`cats`, høyst to per spor). «Sikkerhet og myndighetsinfo» krever rollen *Offentlig organ*. Gamle tagger oversettes til kategori, merke (`tags`) og interne merker (`internal`).
+- **Merker og ordsky:** frie merker med forslag. Ordskyen viser de mest brukte merkene i kartutsnittet. Admin kan skjule merker (`sp_config/tags`).
+- **Språk:** brukeren velger hvilke språk hun eller han forstår. Hvert spor har `lang`, og arkivspor i Norge er satt til norsk. En sekvens følger språket til post 1. Tekstspor leses opp med stemme for sporets språk.
+- **Gyldighet:** `validFrom` og `validTo`. Publiseringsdato vises i spilleren og i bilmodus. «⚠ Ikke riktig lenger» (`sp_flags`) skjuler sporet ved to meldinger, til eieren eller admin nullstiller.
+
+**Lim inn den nye `firestore.rules` og publiser** (nye samlinger `sp_events`, `sp_flags`, `sp_config`, kategoriregel og rollen `official`).
+
 ## Versjon 5 (november 2026)
 
 - **Nedtelling ved opptak:** tidtakeren viser tiden som er igjen. De siste 10 sekundene blir den rød, og telefonen vibrerer.

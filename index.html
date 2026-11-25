@@ -37,7 +37,25 @@
   #tags button { font-size: .8rem; padding: .3rem .7rem; }
   #status { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
   #rec-filter { font: inherit; font-size: .8rem; border: 0; border-radius: 999px; padding: .3rem .6rem; background: #eee; max-width: 55vw; margin-top: .4rem; }
-  #rec-filter.on { background: var(--accent); color: #fff; }
+  #rec-filter.on, #lang-filter.on { background: var(--accent); color: #fff; }
+  #lang-filter { font: inherit; font-size: .8rem; border: 0; border-radius: 999px; padding: .3rem .6rem; background: #eee; max-width: 40vw; margin-top: .4rem; }
+  .filters { display: flex; gap: .35rem; flex-wrap: wrap; }
+  /* Modus: sofa / forflytning / aktivitet */
+  #modes { display: flex; background: #eee; border-radius: 999px; padding: 2px; }
+  #modes button { padding: .4rem .55rem; font-size: .95rem; background: transparent; }
+  #modes button.on { background: var(--accent); color: #fff; }
+  /* Ordsky med merker i kartutsnittet */
+  #cloud { display: flex; align-items: baseline; gap: .55rem; margin-top: .3rem; overflow-x: auto; scrollbar-width: none; }
+  #cloud::-webkit-scrollbar { display: none; }
+  #cloud:empty { display: none; }
+  #cloud a { color: #555; text-decoration: none; cursor: pointer; line-height: 1.15; white-space: nowrap; }
+  #cloud a.on { color: var(--accent); font-weight: 700; }
+  body.car #cloud, body.car .filters { display: none !important; }
+  /* Ny versjon */
+  #upd { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 5.2rem); z-index: 3000; display: none;
+    background: var(--ink); color: #fff; border-radius: 999px; padding: .6rem 1rem; font-size: .9rem; box-shadow: 0 4px 16px #0004; cursor: pointer; white-space: nowrap; }
+  #upd.show { display: block; }
+  .stale { color: #b00; font-weight: 600; }
   .pin.followed { box-shadow: 0 0 0 3px #f5b301, 0 1px 4px #0005; }
   #lost-map { height: 240px; border-radius: 12px; margin-top: .5rem; }
   .bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin-top: .5rem; }
@@ -120,7 +138,7 @@
   }
   .sheet h2 { margin: 0 0 .6rem; font-size: 1.1rem; }
   .sheet label { display: block; font-size: .82rem; color: var(--muted); margin: .7rem 0 .25rem; }
-  .sheet input[type=text], .sheet input[type=password], .sheet textarea, .sheet select {
+  .sheet input[type=text], .sheet input[type=password], .sheet input[type=date], .sheet textarea, .sheet select {
     width: 100%; font: inherit; font-size: .95rem; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: 10px; background: #fff;
   }
   .sheet textarea { min-height: 7rem; resize: vertical; }
@@ -204,7 +222,7 @@
 
   /* Tidtaking */
   #run {
-    position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 9.2rem); z-index: 1600;
+    position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--hdr, calc(env(safe-area-inset-top) + 8.6rem)) + .6rem); z-index: 1600;
     background: #111d; color: #fff; border-radius: 999px; padding: .35rem .5rem .35rem .9rem; display: none; align-items: center; gap: .6rem;
     font-size: .9rem; font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 2px 10px #0004;
   }
@@ -217,7 +235,7 @@
   #run-txt { overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 auto; }
   #run button { flex: none; }
   /* Når båndet vises, holdes toppen av spilleren (med ✕) under båndet */
-  body.has-run #player { max-height: calc(100vh - 12.6rem); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 12.6rem); }
+  body.has-run #player { max-height: calc(100vh - 12.6rem); max-height: calc(100dvh - env(safe-area-inset-bottom) - var(--hdr, calc(env(safe-area-inset-top) + 8.6rem)) - 4rem); }
   #run.fin { background: #1e7d32ee; }
   #run .rb { display: none; }
   #run.test .rb { display: inline-block; }
@@ -262,7 +280,7 @@
   #spw-guide .nav .sp { flex: 1; }
   /* Kort animasjon ved oppstart som frister med bruksområdene */
   #spw-hint {
-    position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 9.2rem); z-index: 1550;
+    position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--hdr, calc(env(safe-area-inset-top) + 8.6rem)) + .6rem); z-index: 1550;
     background: #fff; border: 2px solid var(--accent); border-radius: 16px; box-shadow: 0 6px 24px #e4572e55; padding: .55rem .5rem .55rem .9rem;
     display: none; align-items: center; gap: .6rem; width: min(92vw, 380px); cursor: pointer;
   }
@@ -298,14 +316,22 @@
 <header>
   <div class="row">
     <h1>Sound<span>Pin</span></h1>
-    <button id="walk" title="Spiller automatisk av spor foran deg mens du beveger deg">🚶 Gå</button>
+    <div id="modes" title="Modus">
+      <button data-m="sofa" class="on" title="Sofalytting: trykk deg rundt i kartet hjemmefra">🛋</button>
+      <button data-m="move" id="walk" title="Forflytning: spor spilles av automatisk når du nærmer deg dem (gå, bil, båt)">🚶</button>
+      <button data-m="activity" title="Aktivitet: quiz, rebus og løp">🧩</button>
+    </div>
     <button id="carbtn" title="Bilmodus">🚗</button>
     <button id="heat" title="Varmekart over hvor det finnes mange spor">🔥</button>
     <button id="help-btn" title="Introduksjon og bruksområder">?</button>
     <button id="me-btn" title="Profil og innlogging">👤</button>
   </div>
   <div id="tags"></div>
-  <select id="rec-filter" title="Vis bare spor fra én innspiller" style="display:none"></select>
+  <div id="cloud" title="Mest brukte merker i kartutsnittet. Trykk for å filtrere."></div>
+  <div class="filters">
+    <select id="rec-filter" title="Vis bare spor fra én innspiller" style="display:none"></select>
+    <select id="lang-filter" title="Vis bare spor på ett språk" style="display:none"></select>
+  </div>
   <div id="status">Laster …</div>
 </header>
 
@@ -416,15 +442,30 @@
   <div class="hint" id="rec-vis-hint"></div>
 
   <div id="rec-cat-box">
-    <label>Kategori</label>
+    <label>Kategori <span class="hint">(én eller to)</span></label>
     <div class="chips" id="rec-cats"></div>
-    <input type="text" id="rec-tags" placeholder="Egen kategori (valgfritt, skill med komma)" style="display:none; margin-top:.4rem">
+    <label for="rec-tags">Merker <span class="hint">(valgfritt)</span></label>
+    <input type="text" id="rec-tags" list="rec-tag-list" autocomplete="off" placeholder="F.eks. fister, kongerekken – skill med komma">
+    <datalist id="rec-tag-list"></datalist>
+    <div class="hint" id="rec-tag-hint">Merker er synlige for alle og hjelper deg og andre å finne igjen sporene dine.</div>
   </div>
 
   <details id="rec-more">
     <summary><b>Avansert</b> <span id="rec-sum"></span></summary>
     <label for="rec-desc">Kort beskrivelse</label>
     <input type="text" id="rec-desc" maxlength="200">
+
+    <label for="rec-lang">Språk</label>
+    <select id="rec-lang"></select>
+
+    <div id="rec-valid">
+      <label>Gyldighet <span class="hint">(valgfritt)</span></label>
+      <div class="row" style="flex-wrap:wrap">
+        <div style="flex:1; min-width:140px"><div class="hint">Vises fra</div><input type="date" id="rec-from"></div>
+        <div style="flex:1; min-width:140px"><div class="hint">Vises til og med</div><input type="date" id="rec-to"></div>
+      </div>
+      <div class="hint">Fra-dato: sporet dukker opp først denne dagen, f.eks. ved veiarbeid eller arrangementer. Til-dato: etterpå skjules sporet og spilles ikke. Det slettes ikke – du finner det under Mine spor.</div>
+    </div>
 
     <div id="rec-adv-place">
     <label>Plassering</label>
@@ -512,6 +553,7 @@
 <div class="sheet-bg" id="prof-bg"><div class="sheet" id="prof"></div></div>
 
 <div id="toast"></div>
+<div id="upd"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -543,15 +585,69 @@ const WORDS_PER_90S = 225;
 const HALF_LIFE_DAYS = 30;          // lyttinger mister halve vekten etter 30 dager
 const NEW_BOOST_DAYS = 14;          // nye spor får ekstra synlighet i 14 dager
 const REPLY_BOOST_DAYS = 7;         // et svar gir sporet ny synlighet i 7 dager
-const HIDDEN_TAGS = ["test", "personal messsage", "lifelog", "hytte", "eiendom", "db"];
-const CATEGORIES = ["historie", "lokalhistorie", "natur", "steder", "stedsnavn", "krigen", "dialekt", "familie", "minner", "arkeologi", "kultur", "humor", "quiz", "seiling"];
+// Merker som skjules som standard (private ting fra den gamle appen)
+const HIDDEN_TAGS = ["hytte", "hytter", "eiendom"];
+// ---- Nivå 2: ni faste systemkategorier. ID-en er lik på alle språk, navnet oversettes. Én eller to per spor. ----
+const CATS = {
+  practical: { ico: "🛣", no: "Steds- og veiinfo", en: "Local & road info", de: "Orts- & Straßeninfo" },
+  visit:     { ico: "🧭", no: "Opplev stedet", en: "Visit the place", de: "Den Ort erleben" },
+  history:   { ico: "🏛", no: "Historie og dialekt", en: "History & dialect", de: "Geschichte & Dialekt" },
+  nature:    { ico: "🌲", no: "Natur og friluftsliv", en: "Nature & outdoors", de: "Natur & Draußen" },
+  memories:  { ico: "💭", no: "Minner og historier", en: "Memories & stories", de: "Erinnerungen" },
+  local:     { ico: "🏘", no: "Nabolaget", en: "Neighbourhood", de: "Nachbarschaft" },
+  arts:      { ico: "🎵", no: "Litteratur og musikk", en: "Literature & music", de: "Literatur & Musik" },
+  fun:       { ico: "😄", no: "Underholdning og humor", en: "Fun & humour", de: "Unterhaltung & Humor" },
+  official:  { ico: "🛡", no: "Sikkerhet og myndighetsinfo", en: "Safety & official info", de: "Sicherheit & Behörden" }
+};
+const CAT_IDS = Object.keys(CATS);
+const DATED_CATS = ["practical", "local", "official"];   // fra- og til-dato foreslås for disse
+// Appen er foreløpig bare på norsk, så kategorinavnene vises på norsk. Oversettelsene står klare til appen får flere språk.
+const UI_LANG = "no";
+const catName = id => CATS[id] ? CATS[id][UI_LANG] || CATS[id].no : id;
+const catLabel = id => CATS[id] ? `${CATS[id].ico} ${catName(id)}` : id;
+// ---- Språk (ISO 639-1). «none» = ingen tale (musikk, lyder) og vises for alle. ----
+const LANGS = { no: "Norsk", sv: "Svensk", da: "Dansk", en: "Engelsk", de: "Tysk", fr: "Fransk", es: "Spansk", it: "Italiensk", nl: "Nederlandsk", pl: "Polsk", fi: "Finsk", th: "Thai", none: "Ingen tale" };
+const TTS_LANG = { no: "nb-NO", sv: "sv-SE", da: "da-DK", en: "en-GB", de: "de-DE", fr: "fr-FR", es: "es-ES", it: "it-IT", nl: "nl-NL", pl: "pl-PL", fi: "fi-FI", th: "th-TH" };
+const SCANDI = ["no", "sv", "da"];
+// ---- Oversettelse av taggene fra den gamle appen (og v7) til kategori, merke og interne merker ----
+const INTERNAL_TAGS = ["test", "db", "lifelog", "personal messsage", "test inage", "test i age", "crop test", "test picture", "teat", "aaa", "bla", "image", "images", "photo", "pic", "crop", "selection", "selected"];
+const TAG_CAT = {
+  historie: "history", lokalhistorie: "history", krigen: "history", stedsnavn: "history", arkeologi: "history", arkeologisk: "history",
+  dialekt: "history", dialektord: "history", kongerekken: "history", kongerekke: "history", gatenavn: "history", snublestein: "history",
+  ww2: "history", historier: "history", "gård": "history", "gårder": "history", columbus: "history", "christopher columbus": "history",
+  sted: "visit", steder: "visit", experiences: "visit", temple: "visit", resort: "visit", islandhopping: "visit",
+  natur: "nature", nature: "nature", friluftsliv: "nature", tur: "nature", camping: "nature", fiske: "nature", tree: "nature", moubtain: "nature", walk: "nature", seiling: "nature", "🏕": "nature",
+  minner: "memories", minne: "memories", '"minne"': "memories", familie: "memories", folk: "memories", gjestebok: "memories", "❤️": "memories", "megførst": "memories",
+  lokalpolitikk: "local", "næringsliv": "local",
+  musikk: "arts", music: "arts", concert: "arts", sang: "arts", singing: "arts", sing: "arts", streetart: "arts", munch: "arts", storytelling: "arts", stories: "arts", kultur: "arts", culture: "arts",
+  entertainment: "fun", game: "fun", quiz: "fun", humor: "fun", "skrøner": "fun", prank: "fun", "chit chat": "fun", ranting: "fun", wtf: "fun", thestruggleisreal: "fun",
+  "location info": "practical", mattips: "practical", "mattips til forretningsreisende": "practical", weather: "practical", airport: "practical", "terminal 2": "practical", ferry: "practical"
+};
+// Generelle tagger som bare blir kategori, ikke merke
+// Dubletter fra den gamle appen slås sammen
+const MERKE_ALIAS = { arkeologisk: "arkeologi", dialektord: "dialekt", hytter: "hytte", kongerekke: "kongerekken", "gårder": "gård", pedergadåpodden: "pedersgadåpodden", "christopher columbus": "columbus", "cristoforo colombo": "columbus", colombo: "columbus", "🐈": "katter", "🐱": "katter", cats: "katter", xmas: "jul" };
+const GENERIC_TAGS = ["lokalhistorie", "historie", "historier", "natur", "nature", "minner", "minne", '"minne"', "sted", "steder", "experiences", "entertainment", "educational", "location info", "music", "musikk", "other", "culture", "kultur", "stories"];
+function migrateTags(src) {
+  const cats = [], tags = [], internal = [];
+  (src || []).forEach(raw => {
+    const x = String(raw).trim().toLowerCase(); if (!x) return;
+    if (INTERNAL_TAGS.includes(x)) { internal.push(x); return; }
+    const c = TAG_CAT[x];
+    if (c && !cats.includes(c)) cats.push(c);
+    if (!GENERIC_TAGS.includes(x)) tags.push(MERKE_ALIAS[x] || x.replace(/^#/, ""));
+  });
+  return { cats: cats.slice(0, 2), tags: [...new Set(tags)], internal };
+}
+const normMerke = s => String(s || "").trim().toLowerCase().replace(/^#+/, "").replace(/\s+/g, " ").slice(0, 40);
+const parseMerker = s => [...new Set(String(s || "").split(/[,;\n]/).map(normMerke).filter(Boolean))].slice(0, 10);
+const inNorway = p => p.lat != null && p.lat > 57.5 && p.lat < 71.5 && p.lng > 4 && p.lng < 31.5;
 const ACCESS_NAMES = { map: "Vises i kartet", locked: "Vises, men må være der", hidden: "Skjult skattejakt" };
 const DAY = 864e5;
 // Jevn lydstyrke: hvert spor måles én gang (ca. LUFS), og nivået justeres ved avspilling
 const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
 const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
 const ARCHIVE_NAME = "SoundPin-arkivet";
-const APP_VERSION = "7.2";            // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
+const APP_VERSION = "8.0";           // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
 
 // ================= Tilstand =================
 const store = {
@@ -583,8 +679,16 @@ let lostRaw = [];                   // lydfiler i Storage som mistet sporet sitt
 let follows = new Set(store.get("sp-follows", []));   // innspillere du følger (nøkkel fra recKey)
 let mutes = new Set(store.get("sp-mutes", []));       // innspillere du har dempet
 let recFilter = null;               // navn på innspilleren kartet er filtrert på
+// Språk brukeren forstår (flere) og standardspråk for innspilling. Standard: nettleserens språk pluss norsk.
+const browserLang = ((navigator.language || "no").slice(0, 2).toLowerCase().replace(/^(nb|nn)$/, "no"));
+let langs = new Set(store.get("sp-langs", [...new Set(["no", LANGS[browserLang] ? browserLang : "en"])]));
+let recLang = store.get("sp-rec-lang", LANGS[browserLang] && browserLang !== "none" ? browserLang : "no");
+let langFilter = null;              // ett bestemt språk valgt i kartet (null = alle språk jeg forstår)
+let activeMerke = null;             // merke valgt i ordskyen
+let mode = "sofa";                  // modus: sofa | move (forflytning) | activity
+let flags = {};                     // spor-id → uid-er som har meldt «Ikke riktig lenger»
+let hiddenMerker = new Set();       // merker admin har skjult fra ordskyen og forslagene
 let corsOk = false, ag = null;      // Web Audio (forsterking) virker bare når Storage-bøtta tillater CORS
-let startedThisSession = new Set();
 let activeTag = null, walking = false, heatOn = false, carMode = false, carManual = false;
 let me = null, meMarker = null, watchId = null, course = null, speed = 0, lastFix = null, fastCount = 0, slowSince = null;
 let current = null;
@@ -599,6 +703,8 @@ map.addLayer(cluster);
 const freshLayer = L.layerGroup().addTo(map);   // nye spor grupperes ikke, så de alltid synes
 let heatLayer = null;
 const audio = $("audio");
+// Båndet for sekvenser og fristeren plasseres rett under toppfeltet, som varierer i høyde (ordsky, filtre)
+new ResizeObserver(() => document.documentElement.style.setProperty("--hdr", document.querySelector("header").offsetHeight + "px")).observe(document.querySelector("header"));
 
 function toast(msg, ms = 2800, action = null) {
   const t = $("toast"); t.textContent = msg; t.style.display = "block";
@@ -638,10 +744,13 @@ function quality(t) {
   q += Math.min(0.15, d.u * 0.05);    // folk som faktisk har dratt dit
   return Math.max(0.05, Math.min(1, q));
 }
-async function bump(id, field, extra = {}) {
+// add: { s, c, r, u } med hvor mye hvert felt skal økes (kan være desimaltall, f.eks. 1,5 for lytting på stedet)
+async function bump(id, add, extra = {}) {
+  if (typeof add === "string") add = { [add]: 1 };
+  const inc = d => { for (const [k, v] of Object.entries(add)) d[k] = (d[k] || 0) + v; return d; };
   const now = Date.now();
   const local = stats[id] || {};
-  const d = decayed(local, now); d[field] += 1;
+  const d = inc(decayed(local, now));
   stats[id] = { ...d, t: now, boost: Math.max(local.boost || 0, extra.boost || 0) };
   if (!fb || !user) return;
   try {
@@ -649,16 +758,53 @@ async function bump(id, field, extra = {}) {
     await fb.runTransaction(fb.db, async tx => {
       const snap = await tx.get(r);
       const st = snap.exists() ? snap.data() : {};
-      const dd = decayed(st, now); dd[field] += 1;
+      const dd = inc(decayed(st, now));
       const next = { s: dd.s, c: dd.c, r: dd.r, u: dd.u, t: now, boost: Math.max(st.boost || 0, extra.boost || 0) };
       tx.set(r, next);
       stats[id] = next;
     });
   } catch (e) { console.warn("Lyttescore ikke lagret", e); }
 }
-
+// ---- Avspillinger: bevisste og tekniske avbrudd, lytting på stedet, og en logg per avspilling ----
+// Bevisst avbrudd (✕ eller et annet spor valgt i løpet av de første ~20 s) teller som avbrutt, med dobbel vekt.
+// Teknisk avbrudd (ut av radius, et annet spor tok over, lyden stoppet eller kunne ikke lastes) teller ikke.
+// Fullført lytting på stedet teller mer enn i sofaen, og mest for spor man må være på stedet for å høre.
+const EARLY_ABORT_S = 20;
+const W_SITE = 1.5, W_SITE_LOCKED = 2, W_SOFA = 1, W_EARLY_ABORT = 2;
+let playSess = null;                 // { t, t0, site, mode, speed }
+const scoredThisSession = new Set(); // hvert spor teller i scoren høyst én gang per økt
+const playMode = t => (activeSeq || t.codeHash?.length || t.seqId) ? "activity" : walking ? "move" : "sofa";
+const atSite = t => !!(walking && me && dist(me, t) <= Math.max(reach(t), trackRadius(t) + Math.min(accuracy || 0, MAX_ACCURACY_BONUS)) * 1.5);
+function beginPlay(t) {
+  if (t.id === "_preview" || (playSess && playSess.t === t)) return;
+  playSess = { t, t0: Date.now(), site: atSite(t), mode: playMode(t), speed: Math.round(speed * 3.6) };
+}
+function heardSeconds() {
+  if (!playSess) return 0;
+  if (playSess.t.kind !== "text" && audio.getAttribute("src")) return Math.round(audio.currentTime || 0);
+  return Math.round((Date.now() - playSess.t0) / 1000);
+}
+// reason: completed | closed | switched (bevisst) · replaced | left | stalled | error | other (teknisk)
+function endPlay(reason) {
+  const s = playSess; if (!s) return;
+  playSess = null;
+  const t = s.t, heardS = heardSeconds(), dur = t.duration || Math.round(audio.duration || 0) || null;
+  const deliberate = reason === "closed" || reason === "switched";
+  if (!inTest(t) && !scoredThisSession.has(t.id) && (reason === "completed" || deliberate)) {
+    scoredThisSession.add(t.id);
+    if (reason === "completed") {
+      const w = s.site ? (accessOf(t) === "locked" ? W_SITE_LOCKED : W_SITE) : W_SOFA;
+      bump(t.id, { s: w, c: w });
+    } else bump(t.id, { s: heardS < EARLY_ABORT_S ? W_EARLY_ABORT : 1 });
+  }
+  if (fb && user && !inTest(t)) {
+    fb.addDoc(fb.collection(fb.db, "sp_events"), {
+      track: t.id, uid: user.uid, reason, heard: heardS, dur, mode: s.mode, site: s.site, speed: s.speed, at: Date.now()
+    }).catch(e => console.warn("Avspillingslogg ikke lagret", e.code || e));
+  }
+}
 // ================= Utvalg og relevans =================
-const isHiddenByDefault = t => t.tags.some(x => HIDDEN_TAGS.includes(x));
+const isHiddenByDefault = t => !!t.internal?.length || t.tags.some(x => HIDDEN_TAGS.includes(x));
 const playable = t => (t.audioUrl || (t.kind === "text" && t.text)) && t.lat != null && !t.replyTo && !t.archived;
 const clampRadius = r => Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, Math.round(r || DEFAULT_RADIUS)));
 const trackRadius = t => clampRadius(t.radius);
@@ -711,7 +857,7 @@ function toggleMute(t) {
   if (on) follows.delete(k);
   setRecFlag(mutes, k, on);
   toast(on ? `🔕 ${recName(t)} er dempet. Du kan angre i profilen.` : `${recName(t)} er ikke lenger dempet.`, 3500);
-  if (on && current && recKey(current) === k) closePlayer();
+  if (on && current && recKey(current) === k) closePlayer("closed");
 }
 // Innspillere grupperes på navnet som vises (alle anonyme arkivspor blir «SoundPin-arkivet»)
 function recorders() {
@@ -733,15 +879,71 @@ function renderRecFilter() {
 }
 $("rec-filter").onchange = e => { recFilter = e.target.value || null; renderRecFilter(); render(); };
 
-function baseList() {
-  let list = tracks.filter(playable).filter(t => !isMuted(t));
+// ---- Språk ----
+// En sekvens har språket til post 1. Når sekvensen er startet, spilles alle postene uansett språk.
+const trackLang = t => (t.seqId && seqMeta[t.seqId]?.list[0]?.lang) || t.lang || null;
+function langOk(t) {
+  if (activeSeq && t.seqId === activeSeq.id) return true;
+  const l = trackLang(t);
+  if (!l || l === "none") return true;             // ukjent språk og spor uten tale vises for alle
+  if (langFilter) return l === langFilter;
+  return langs.has(l) || isOwn(t);
+}
+function saveLangs() {
+  store.set("sp-langs", [...langs]); store.set("sp-rec-lang", recLang);
+  if (fb && isReal()) fb.updateDoc(fb.doc(fb.db, "sp_users", user.uid), { langs: [...langs], recLang }).catch(e => console.warn("Språk ikke lagret", e));
+  renderLangFilter(); render(); renderCloud();
+}
+// Velger for språk: brukes i profilen og under «?»
+function langPicker(box) {
+  const draw = () => {
+    const scandi = SCANDI.every(l => langs.has(l));
+    box.innerHTML = `<div class="chips"><button type="button" data-l="scandi" class="${scandi ? "on" : ""}">Skandinavisk</button>${Object.entries(LANGS).filter(([k]) => k !== "none").map(([k, v]) => `<button type="button" data-l="${k}" class="${langs.has(k) ? "on" : ""}">${v}</button>`).join("")}</div>
+      <label style="margin-top:.5rem">Standardspråk når jeg spiller inn</label>
+      <select id="lp-rec">${Object.entries(LANGS).filter(([k]) => k !== "none").map(([k, v]) => `<option value="${k}" ${recLang === k ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <div class="hint">Bare spor på språk du forstår, spilles og vises. Spor uten tale (musikk, lyder) vises for alle.</div>`;
+    box.querySelector(".chips").onclick = e => {
+      const l = e.target.dataset.l; if (!l) return;
+      if (l === "scandi") { const on = !SCANDI.every(x => langs.has(x)); SCANDI.forEach(x => on ? langs.add(x) : langs.delete(x)); }
+      else langs.has(l) ? langs.delete(l) : langs.add(l);
+      if (!langs.size) langs.add("no");
+      saveLangs(); draw();
+    };
+    box.querySelector("#lp-rec").onchange = e => { recLang = e.target.value; langs.add(recLang); saveLangs(); draw(); };
+  };
+  draw();
+}
+function renderLangFilter() {
+  const sel = $("lang-filter"); if (!sel) return;
+  const n = {};
+  tracks.filter(playable).forEach(t => { const l = trackLang(t); if (l && l !== "none" && (langs.has(l) || l === langFilter)) n[l] = (n[l] || 0) + 1; });
+  const keys = Object.keys(n).sort((a, b) => n[b] - n[a]);
+  if (langFilter && !n[langFilter]) langFilter = null;
+  sel.style.display = keys.length > 1 ? "" : "none";
+  sel.innerHTML = `<option value="">🌐 Alle mine språk</option>` + keys.map(k => `<option value="${k}" ${langFilter === k ? "selected" : ""}>${LANGS[k] || k} (${n[k]})</option>`).join("");
+  sel.classList.toggle("on", !!langFilter);
+}
+$("lang-filter").onchange = e => { langFilter = e.target.value || null; renderLangFilter(); render(); renderCloud(); };
+// ---- Gyldighet: fra- og til-dato ----
+const endOfDay = ms => { const d = new Date(ms); d.setHours(23, 59, 59, 999); return d.getTime(); };
+const notYet = t => !!(t.validFrom && Date.now() < t.validFrom);
+const expired = t => !!(t.validTo && Date.now() > endOfDay(t.validTo));
+const inForce = t => !notYet(t) && !expired(t);
+// «Ikke riktig lenger»: meldt av flere enn én skjules til admin eller eieren har sjekket det
+const FLAG_HIDE = 2;
+const flagCount = t => (flags[t.id] || []).length;
+const flagHidden = t => flagCount(t) >= FLAG_HIDE && !isOwn(t) && !isAdmin();
+function baseList({ noMerke = false } = {}) {
+  let list = tracks.filter(playable).filter(t => !isMuted(t) && inForce(t) && !flagHidden(t) && langOk(t));
   // Aktiv sekvens: bare postene i sekvensen, uansett kategori- og innspillerfilter
   if (activeSeq && seqMeta[activeSeq.id]) return list.filter(t => t.seqId === activeSeq.id);
+  if (mode === "activity") list = list.filter(isActivity);
   if (recFilter) { const g = recorders()[recFilter]; list = list.filter(t => g && g.keys.has(recKey(t))); }
   if (activeTag === "__mine") list = list.filter(isOwn);
   else if (activeTag === "__unlocked") list = list.filter(t => unlocks[t.id] && !isOwn(t));
-  else if (activeTag) list = list.filter(t => t.tags.includes(activeTag));
-  else list = list.filter(t => !isHiddenByDefault(t));
+  else if (activeTag) list = list.filter(t => (t.cats || []).includes(activeTag));
+  if (activeMerke && !noMerke) list = list.filter(t => t.tags.includes(activeMerke));
+  if (!activeTag && !activeMerke) list = list.filter(t => !isHiddenByDefault(t));
   return list;
 }
 function relevance(t) {
@@ -793,28 +995,49 @@ function render() {
     cluster.addLayers(list.filter(t => t.legacy).map(markerFor));
     list.filter(t => !t.legacy).forEach(t => freshLayer.addLayer(markerFor(t)));
   }
-  const total = tracks.filter(playable).length;
+  const total = tracks.filter(t => playable(t) && inForce(t)).length;
   $("status").textContent = heatOn ? `Varmekart · ${total} spor`
     : activeSeq && seqMeta[activeSeq.id] ? `${activeSeq.test ? "Test: " : ""}${seqMeta[activeSeq.id].name} · ${list.length} av ${seqMeta[activeSeq.id].list.length} poster synlige${walking && accuracy != null ? ` · GPS ±${Math.round(accuracy)} m` : ""}`
-    : walking ? (me ? `Gå-modus: ${list.length} mest relevante uhørte spor · ${heard.size} hørt${accuracy != null ? ` · GPS ±${Math.round(accuracy)} m` : ""}` : "Venter på posisjon …")
-    : `${list.length} av ${total} spor${activeTag ? ` med «${activeTag}»` : ""} · ${heard.size} hørt`;
+    : walking ? (me ? `${mode === "activity" ? "🧩 Aktivitet" : "🚶 Forflytning"}: ${list.length} ${mode === "activity" ? "poster" : "mest relevante uhørte spor"} · ${heard.size} hørt${accuracy != null ? ` · GPS ±${Math.round(accuracy)} m` : ""}` : "Venter på posisjon …")
+    : `${mode === "activity" ? "🧩 Aktivitet · " : ""}${list.length} av ${total} spor${activeTag && CATS[activeTag] ? ` i «${catName(activeTag)}»` : ""}${activeMerke ? ` med #${activeMerke}` : ""} · ${heard.size} hørt`;
 }
+// Kategoriene øverst: de ni systemkategoriene (bare de som har spor), pluss egne og opplåste spor
 function renderTags() {
   const counts = {};
-  tracks.forEach(t => t.tags.forEach(x => counts[x] = (counts[x] || 0) + 1));
-  const top = Object.entries(counts).filter(([x, n]) => n >= 3 && !HIDDEN_TAGS.includes(x)).sort((a, b) => b[1] - a[1]).map(([x]) => x);
+  tracks.filter(t => playable(t) && inForce(t)).forEach(t => (t.cats || []).forEach(c => counts[c] = (counts[c] || 0) + 1));
   const box = $("tags"); box.innerHTML = "";
-  const mk = (label, tag) => {
+  const mk = (label, tag, title = "") => {
     const b = document.createElement("button");
-    b.textContent = label; b.className = activeTag === tag ? "on" : "";
-    b.onclick = () => { activeTag = tag; renderTags(); render(); };
+    b.textContent = label; b.className = activeTag === tag ? "on" : ""; if (title) b.title = title;
+    b.onclick = () => { activeTag = activeTag === tag ? null : tag; renderTags(); render(); renderCloud(); };
     box.appendChild(b);
   };
   mk("Alle", null);
   if (user && tracks.some(isOwn)) mk("⭐ Mine spor", "__mine");
   if (tracks.some(t => unlocks[t.id] && !isOwn(t))) mk("🔓 Opplåst", "__unlocked");
-  top.forEach(x => mk(x, x));
+  CAT_IDS.filter(c => counts[c]).forEach(c => mk(catLabel(c), c, `${counts[c]} spor`));
 }
+// ---- Ordsky: de mest brukte merkene blant sporene i kartutsnittet. Trykk på et ord for å filtrere. ----
+function renderCloud() {
+  const box = $("cloud"); if (!box) return;
+  if (activeSeq || heatOn) { box.innerHTML = ""; return; }
+  const b = map.getBounds(), w = {};
+  baseList({ noMerke: true }).filter(t => b.contains([t.lat, t.lng])).forEach(t => t.tags.forEach(x => {
+    if (hiddenMerker.has(x) || HIDDEN_TAGS.includes(x)) return;
+    w[x] = (w[x] || 0) + 0.5 + quality(t);          // antall spor, vektet med lyttescore
+  }));
+  let top = Object.entries(w).sort((a, b) => b[1] - a[1]).slice(0, 14);
+  if (activeMerke && !w[activeMerke]) top.unshift([activeMerke, top[0]?.[1] || 1]);
+  if (top.length < 2 && !activeMerke) { box.innerHTML = ""; return; }
+  const max = Math.max(...top.map(x => x[1])), min = Math.min(...top.map(x => x[1]));
+  top = top.sort((a, b) => a[0].localeCompare(b[0], "nb"));
+  box.innerHTML = top.map(([x, v]) => {
+    const f = max === min ? 1 : (v - min) / (max - min);
+    return `<a data-m="${esc(x)}" class="${activeMerke === x ? "on" : ""}" style="font-size:${(0.72 + f * 0.55).toFixed(2)}rem">#${esc(x)}</a>`;
+  }).join("");
+}
+$("cloud").onclick = e => { const a = e.target.closest("[data-m]"); if (!a) return; activeMerke = activeMerke === a.dataset.m ? null : a.dataset.m; renderCloud(); render(); };
+map.on("moveend", () => renderCloud());
 
 // ================= Avspilling =================
 const LABELS = { local: "Fortalt av lokale", verified: "Verifisert", ai: "AI-generert" };
@@ -824,9 +1047,7 @@ function stopAll() {
   if (window.speechSynthesis) speechSynthesis.cancel();
   speaking = false;
 }
-function onStarted(t) {
-  if (!startedThisSession.has(t.id)) { startedThisSession.add(t.id); bump(t.id, "s"); }
-}
+function onStarted(t) { beginPlay(t); }
 // Spilleren blir stående etter avspilling, så man rekker å lese, svare eller spille av igjen.
 // Spor med spørsmål står til riktig svar eller ✕ (i bilmodus høyst 2 min); andre spor i 30 sekunder.
 const LINGER_MS = 30000, CAR_ANSWER_MS = 120000;
@@ -838,7 +1059,8 @@ function lingerThenClose(t, ms) {
 }
 function onCompleted(t) {
   if (inTest(t)) { T.heard.add(t.id); saveTest(); }
-  else { heard.add(t.id); store.set("sp-heard", [...heard]); bump(t.id, "c"); }
+  else { heard.add(t.id); store.set("sp-heard", [...heard]); }
+  if (playSess?.t === t) endPlay("completed");
   if (walking && current === t) {
     if (needsAnswer(t)) { if (carMode) lingerThenClose(t, CAR_ANSWER_MS); else { clearTimeout(closeTimer); lingerUntil = Infinity; } }
     else lingerThenClose(t, LINGER_MS);
@@ -847,7 +1069,8 @@ function onCompleted(t) {
   if (activeSeq && t.seqId === activeSeq.id) checkSeqDone();
 }
 // Lukker spilleren og setter bilskjermen tilbake til start
-function closePlayer() {
+function closePlayer(reason = "other") {
+  if (playSess) endPlay(typeof reason === "string" ? reason : "other");
   clearTimeout(closeTimer); lingerUntil = 0;
   stopAll();
   $("player").classList.remove("show"); document.body.classList.remove("has-player");
@@ -912,14 +1135,19 @@ function speak(t) {
   if (!window.speechSynthesis) { toast("Nettleseren kan ikke lese opp tekst."); return; }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(t.text);
-  u.lang = "nb-NO";
-  const v = speechSynthesis.getVoices().find(v => /^(nb|no|nn)/i.test(v.lang));
+  // Tekstspor leses opp med en stemme for sporets språk
+  const tl = TTS_LANG[t.lang || (t.id === "_preview" ? recLang : "no")] || "nb-NO";
+  u.lang = tl;
+  const pre = tl.slice(0, 2) === "nb" ? /^(nb|no|nn)/i : new RegExp("^" + tl.slice(0, 2), "i");
+  const v = speechSynthesis.getVoices().find(v => pre.test(v.lang));
   if (v) u.voice = v;
   u.onstart = () => { speaking = true; $("tts-btn").textContent = "⏸"; if (t.id !== "_preview") onStarted(t); };
   u.onend = () => { const done = speaking; speaking = false; $("tts-btn").textContent = "▶"; if (done && current === t) onCompleted(t); };
   speechSynthesis.speak(u);
 }
-function play(t) {
+// auto: spilt av gå-/bilmodus. Et nytt spor valgt av brukeren mens et annet spilles, er et bevisst avbrudd.
+function play(t, { auto = false } = {}) {
+  if (playSess && playSess.t !== t) endPlay(auto ? "replaced" : "switched");
   stopAll();
   clearTimeout(closeTimer); lingerUntil = 0;
   current = t;
@@ -930,7 +1158,12 @@ function play(t) {
   const lbl = t.label || "local";
   const bits = [];
   bits.push((isFollowed(t) ? "⭐ " : "") + esc(recName(t)));
-  if (t.tags.length) bits.push(esc(t.tags.join(" · ")));
+  if (t.cats?.length) bits.push(t.cats.map(catLabel).map(esc).join(" · "));
+  if (t.tags.length) bits.push(t.tags.map(x => "#" + esc(x)).join(" "));
+  bits.push(pubDate(t));
+  const l = trackLang(t); if (l && l !== "no") bits.push("🌐 " + esc(LANGS[l] || l));
+  if (t.validTo) bits.push(`gjelder til ${fmtDate(t.validTo)}`);
+  if (flagCount(t)) bits.push(`<span class="stale">⚠ meldt som ikke riktig lenger (${flagCount(t)})</span>`);
   if (me) bits.push(fmtDist(dist(me, t)) + " unna");
   if (t.seqName) bits.push(`Sekvens «${esc(t.seqName)}» #${t.seqNo}${isTimed(t) ? ` av ${seqMeta[t.seqId].list.length} · ⏱ med tidtaking${seqMeta[t.seqId].limit ? ` (${seqMeta[t.seqId].limit} min)` : ""}` : ""}`);
   if (isLocked(t) && !inTest(t) && unlocks[t.id]) bits.push(`🔓 Låst opp ${new Date(unlocks[t.id]).toLocaleDateString("nb-NO")}`);
@@ -957,9 +1190,17 @@ function play(t) {
   setCarNow(t);
   if (!walking) map.panTo([t.lat, t.lng]);
 }
+// Publiseringsdato: «for 2 dager siden» for nye spor, ellers datoen
+const fmtDate = ms => new Date(ms).toLocaleDateString("nb-NO", { day: "numeric", month: "numeric", year: "numeric" });
+function pubDate(t, short = false) {
+  if (!t.createdAt) return "";
+  const days = Math.floor((Date.now() - t.createdAt) / DAY);
+  const rel = days < 1 ? "i dag" : days === 1 ? "i går" : days < 7 ? `for ${days} dager siden` : null;
+  return short ? (rel || fmtDate(t.createdAt)) : (rel ? `publisert ${rel}` : `publisert ${fmtDate(t.createdAt)}`);
+}
 // Bilmodus: bildet byttes bare når et nytt spor starter. Beskrivelse og forstørring bare når bilen står stille (CSS: body.stopped).
 function setCarNow(t) {
-  $("car-now").textContent = t.title || "Uten navn";
+  $("car-now").textContent = (t.title || "Uten navn") + (t.createdAt ? ` · ${pubDate(t, true)}` : "");
   $("car-code").classList.toggle("has", needsAnswer(t)); $("car-code-in").value = "";
   $("car-desc").textContent = t.desc || "";
   const img = $("car-img");
@@ -1011,8 +1252,8 @@ audio.addEventListener("play", () => current && onStarted(current));
 audio.addEventListener("ended", () => current && onCompleted(current));
 audio.addEventListener("timeupdate", () => { lastProgress = Date.now(); });
 // Lyden kunne ikke lastes: slipp sporet uten å telle det som hørt
-audio.addEventListener("error", () => { if (current && current.kind !== "text" && audio.getAttribute("src") && walking) closePlayer(); });
-$("close").onclick = closePlayer;
+audio.addEventListener("error", () => { if (current && current.kind !== "text" && audio.getAttribute("src")) { if (walking) closePlayer("error"); else endPlay("error"); } });
+$("close").onclick = () => closePlayer("closed");
 
 function renderActions(t) {
   const box = $("p-actions"); box.innerHTML = "";
@@ -1027,6 +1268,7 @@ function renderActions(t) {
   if (isTimed(t)) add("🏁 Resultater", () => openResults(t.seqId));
   add("📣 Utfordre", () => challenge(t));
   add("🔗 Del", () => shareLink(t, t.title || "SoundPin"));
+  if (!isOwn(t)) add("⚠ Ikke riktig lenger", () => flagOutdated(t));
   if (!t.legacy) add("⚑ Rapporter", () => report(t));
   if (fb && user && !t.legacy && isVerifier()) {
     add(t.label === "verified" ? "Fjern verifisering" : "✓ Verifiser", () => setLabel(t, t.label === "verified" ? "local" : "verified"));
@@ -1110,7 +1352,7 @@ function challenge(t) {
   if (isTimed(t)) text = `${who} utfordrer deg: klarer du «${seqMeta[t.seqId].name}» på SoundPin? Tiden går fra første post til siste.`;
   else if (t.codeHash?.length) text = `${who} utfordrer deg: finner du svaret på «${title}» på SoundPin?`;
   else if (t.tags.includes("dialekt")) text = `${who} utfordrer deg til å fortelle en artig historie på din dialekt der du bor. Hør «${title}» på SoundPin og legg igjen din egen!`;
-  else if (t.tags.includes("minner")) text = `${who} utfordrer deg til å fortelle ditt minne fra dette stedet. Hør «${title}» på SoundPin og trykk «💬 Svar».`;
+  else if (t.cats?.includes("memories")) text = `${who} utfordrer deg til å fortelle ditt minne fra dette stedet. Hør «${title}» på SoundPin og trykk «💬 Svar».`;
   else text = `${who} utfordrer deg: hør «${title}» på SoundPin og fortell din egen historie fra stedet med «💬 Svar».`;
   shareLink(t, text);
 }
@@ -1119,7 +1361,7 @@ function renderReplies(t) {
   const box = $("p-replies");
   if (!reps.length) { box.style.display = "none"; return; }
   box.style.display = "block";
-  box.innerHTML = `<h3>${t.tags.includes("minner") ? "Minner fra dette stedet" : "Svar"} (${reps.length})</h3>`;
+  box.innerHTML = `<h3>${t.cats?.includes("memories") ? "Minner fra dette stedet" : "Svar"} (${reps.length})</h3>`;
   reps.forEach(r => {
     const row = document.createElement("div"); row.className = "reply";
     const here = r.wasHere ? ` <span class="badge grey" title="Låste opp sporet på stedet">📍 var her ${new Date(r.wasHere).toLocaleDateString("nb-NO")}</span>` : "";
@@ -1184,7 +1426,7 @@ function checkNearby() {
     renderTags(); render(); renderRun();
   }
   const stalled = current && !speaking && !audio.paused && !audio.ended && Date.now() - lastProgress > STALL_MS;
-  if (stalled) { console.warn("Sporet sto stille – går videre", current.id); closePlayer(); }
+  if (stalled) { console.warn("Sporet sto stille – går videre", current.id); closePlayer("stalled"); }
   // Opptatt: noe spilles, eller spilleren står åpen for å lese eller svare
   // Et opplåst spor med ubesvart spørsmål holder spilleren åpen til svaret er riktig eller den lukkes (i bilmodus styrt av tidsgrensen)
   const waiting = current && !carMode && $("player").classList.contains("show") && needsAnswer(current) && isUnlocked(current);
@@ -1197,7 +1439,7 @@ function checkNearby() {
   if (lingering && !hard) cand = cand.filter(x => opened.includes(x.t) || (activeSeq && x.t.seqId === activeSeq.id && x.t !== current));
   if (carMode) $("car-next").textContent = cand[0] && !hard ? "" : nextAheadText();
   if (hard || !cand.length) return;
-  play(cand[0].t);
+  play(cand[0].t, { auto: true });
 }
 function nextAheadText() {
   if (!me) return "";
@@ -1240,9 +1482,20 @@ function startWatch() {
   watchId = navigator.geolocation.watchPosition(onPosition, err => { $("status").textContent = "Fikk ikke posisjon: " + err.message; },
     { enableHighAccuracy: true, maximumAge: 3000 });
 }
+// Modus: sofa (ingen GPS), forflytning (GPS spiller av spor) og aktivitet (GPS + bare quiz, rebus og løp)
+const isActivity = t => !!(t.codeHash?.length || t.seqId || t.tags.includes("quiz"));
+function syncModes() { $("modes").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === mode)); }
+function setMode(m) {
+  mode = m; syncModes();
+  if ((m !== "sofa") !== walking) toggleWalk(m !== "sofa"); else render();
+  renderTags(); renderCloud();
+  if (m === "activity" && !activeSeq) toast("🧩 Aktivitet: bare quiz, rebus og løp vises. Gå til en post, eller trykk på den og velg 🚩 Start.", 4500);
+}
 function toggleWalk(force) {
   walking = force ?? !walking;
-  $("walk").classList.toggle("on", walking);
+  if (!walking && mode !== "sofa") mode = "sofa";
+  if (walking && mode === "sofa") mode = "move";
+  syncModes();
   if (walking) {
     // Låser opp lyd på iOS (krever brukerhandling)
     audio.muted = true; audio.play().catch(() => {}).finally(() => { audio.pause(); audio.muted = false; });
@@ -1252,10 +1505,10 @@ function toggleWalk(force) {
   } else if (carMode) setCar(false);
   render();
 }
-$("walk").onclick = () => toggleWalk();
+$("modes").onclick = e => { const b = e.target.closest("[data-m]"); if (b) setMode(b.dataset.m); };
 $("carbtn").onclick = () => { carManual = true; setCar(!carMode); };
 $("car-off").onclick = () => { carManual = true; setCar(false); };
-$("heat").onclick = () => { heatOn = !heatOn; $("heat").classList.toggle("on", heatOn); render(); };
+$("heat").onclick = () => { heatOn = !heatOn; $("heat").classList.toggle("on", heatOn); render(); renderCloud(); };
 
 // ================= Sekvenser =================
 let seqMeta = {};                   // sekvens-id → { name, timed, limit (min), list (sortert) }
@@ -1285,11 +1538,11 @@ function startSeq(id, test, { quiet = false } = {}) {
     if (run?.seq === id) { run = null; store.set("sp-run", null); }
   }
   activeSeq = { id, test: !!test, start: Date.now() };
-  store.set("sp-active-seq", activeSeq);
+  store.set("sp-active-seq", activeSeq); showUpdate(); renderCloud();
   armed.clear();
   if (!quiet) {
     closePlayer();
-    if (!walking) toggleWalk(true);   // knappetrykket låser også opp lyden på iPhone
+    if (mode !== "activity") setMode("activity");   // knappetrykket låser også opp lyden på iPhone
     const pts = m.list.filter(secretVisible).map(t => [t.lat, t.lng]);
     if (pts.length) map.fitBounds(pts, { paddingTopLeft: [40, 170], paddingBottomRight: [40, 40], maxZoom: 17 });
   }
@@ -1300,7 +1553,7 @@ function startSeq(id, test, { quiet = false } = {}) {
 function endSeq() {
   if (run && run.seq === activeSeq?.id) run = null, store.set("sp-run", null);
   activeSeq = null; store.set("sp-active-seq", null);
-  closePlayer(); render(); renderRun();
+  closePlayer(); render(); renderRun(); renderCloud(); showUpdate();
 }
 function seqProgress() {
   const m = activeSeq && seqMeta[activeSeq.id]; if (!m) return null;
@@ -1320,7 +1573,7 @@ function checkSeqDone() {
 let run = store.get("sp-run", null);   // { seq, name, start, next, n, limit }
 const passReach = t => trackRadius(t) + Math.min(accuracy || 0, 10);
 const fmtDur = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? `${h}:${String(m).padStart(2, "0")}` : `${m}`) + `:${String(x).padStart(2, "0")}`; };
-function saveRun() { store.set("sp-run", run); renderRun(); }
+function saveRun() { store.set("sp-run", run); renderRun(); showUpdate(); }
 // Båndet øverst: tidtaking hvis et løp pågår, ellers fremdriften i den aktive sekvensen
 function renderRun() {
   const box = $("run");
@@ -1383,7 +1636,7 @@ function checkRun() {
 async function finishRun(m) {
   const ms = Date.now() - run.start, over = !!(run.limit && ms > run.limit * 60000);
   const r = { seq: m.id, ms, over, limit: run.limit || null, at: Date.now(), uid: user?.uid || null, name: profile?.name || (isReal() ? (user.displayName || "") : "") || "Anonym" };
-  run = null; saveRun();
+  run = null; saveRun(); showUpdate();
   if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 200]);
   const test = activeSeq?.test && activeSeq.id === m.id;
   toast(`🏁 I mål! ${m.name}: ${fmtDur(ms)}${over ? " (over tiden)" : ""}${test ? " · test, tiden lagres ikke" : ""}`, 8000, test ? { label: "Avslutt", fn: endSeq } : { label: "Resultater", fn: () => openResults(m.id) });
@@ -1421,8 +1674,12 @@ function normLegacy(p) {
   const m = archiveMeta[p.id] || {};
   const ownerId = m.owner || p.creator;
   const o = legacyOwners[ownerId] || {};
+  // Kategori og merker: det admin har satt i ryddeverktøyet, ellers oversatt fra de gamle taggene
+  const mig = migrateTags(m.cats ? p.tags : (m.tags || p.tags));
   return {
-    id: p.id, title: m.title ?? p.name, desc: m.desc ?? p.description, lat: p.lat, lng: p.lng, tags: m.tags || p.tags || [],
+    id: p.id, title: m.title ?? p.name, desc: m.desc ?? p.description, lat: p.lat, lng: p.lng,
+    cats: m.cats || mig.cats, tags: m.cats ? (m.tags || []) : mig.tags, internal: mig.internal,
+    lang: m.lang !== undefined ? m.lang : (inNorway(p) ? "no" : null),
     audioUrl: p.audioUrl, imageUrl: p.imageUrl, kind: "audio", label: m.label || "local", legacy: true,
     legacyOwner: ownerId, creator: o.linkedUid || null,
     creatorName: o.showName && o.name ? o.name : ARCHIVE_NAME, visibility: "public",
@@ -1436,11 +1693,14 @@ function normLegacy(p) {
 let rawLegacy = null;
 const legacyAll = () => [...rawLegacy, ...placedLost()].map(normLegacy);
 function normTrack(id, d) {
-  return { id, ...d, tags: d.tags || [], label: d.label || "local", createdAt: d.createdAt || 0, seqNo: d.seqNo || 0 };
+  // Spor fra før versjon 8 har bare tagger: oversett dem til kategori og merker
+  const mig = d.cats ? null : migrateTags(d.tags);
+  return { id, ...d, cats: d.cats || mig.cats, tags: d.cats ? (d.tags || []) : mig.tags, internal: mig ? mig.internal : (d.internal || []),
+    label: d.label || "local", createdAt: d.createdAt || 0, seqNo: d.seqNo || 0 };
 }
 function setTracks(list) {
   tracks = list; byId = new Map(list.map(t => [t.id, t]));
-  computeSequences(); renderTags(); renderRecFilter(); render(); renderRun();
+  computeSequences(); renderTags(); renderRecFilter(); renderLangFilter(); render(); renderCloud(); renderRun();
 }
 async function loadAll() {
   if (!rawLegacy) {
@@ -1468,6 +1728,10 @@ async function loadAll() {
     fresh = [...seen.values()];
     try { (await getDocs(collection(fb.db, "sp_stats"))).forEach(s => stats[s.id] = s.data()); }
     catch (e) { console.warn("Lyttescore ikke lastet", e); }
+    try { flags = {}; (await getDocs(collection(fb.db, "sp_flags"))).forEach(s => flags[s.id] = s.data().by || []); }
+    catch (e) { console.warn("Meldinger om «ikke riktig lenger» ikke lastet", e.code || e); }
+    try { const c = await fb.getDoc(fb.doc(fb.db, "sp_config", "tags")); hiddenMerker = new Set(c.exists() ? c.data().hidden || [] : []); }
+    catch (e) { console.warn("Skjulte merker ikke lastet", e.code || e); }
   }
   setTracks([...legacyAll(), ...fresh]);
 }
@@ -1491,9 +1755,10 @@ const isReal = () => user && !user.isAnonymous;
 const adminByEmail = () => isReal() && user.emailVerified && ADMIN_EMAILS.includes((user.email || "").toLowerCase());
 const isAdmin = () => adminByEmail() || (isReal() && profile?.role === "admin");
 const role = () => isAdmin() ? "admin" : (profile?.role || "user");
-const canPublic = () => ["authorized", "verifier", "admin"].includes(role());
+const canPublic = () => ["authorized", "official", "verifier", "admin"].includes(role());
+const canOfficial = () => ["official", "admin"].includes(role());   // «Sikkerhet og myndighetsinfo» er bare for offentlige organer
 const isVerifier = () => ["verifier", "admin"].includes(role());
-const ROLE_NAMES = { user: "Ny bruker", authorized: "Autorisert", verifier: "Verifikator", admin: "Administrator" };
+const ROLE_NAMES = { user: "Ny bruker", authorized: "Autorisert", official: "Offentlig organ", verifier: "Verifikator", admin: "Administrator" };
 
 const AUTH_ERRORS = {
   "auth/unauthorized-domain": "Nettadressen er ikke godkjent i Firebase (Authentication → Settings → Authorized domains).",
@@ -1583,6 +1848,9 @@ async function afterSignIn() {
     store.set("sp-follows", [...follows]); store.set("sp-mutes", [...mutes]);
     if (follows.size !== (profile.follows || []).length || mutes.size !== (profile.mutes || []).length || f0 || m0)
       fb.updateDoc(ref, { follows: [...follows], mutes: [...mutes] }).catch(e => console.warn(e));
+    // Språkvalgene følger kontoen
+    if (profile.langs?.length) { langs = new Set(profile.langs); recLang = profile.recLang || recLang; store.set("sp-langs", [...langs]); store.set("sp-rec-lang", recLang); }
+    else fb.updateDoc(ref, { langs: [...langs], recLang }).catch(e => console.warn(e));
   } catch (e) { console.warn("Profil ikke lastet", e); toast("Profilen kunne ikke lagres: " + (e.code || e.message) + ". Er sikkerhetsreglene publisert?", 8000); }
   updateMeButton();
   await syncUnlocks();
@@ -1590,6 +1858,20 @@ async function afterSignIn() {
   await handleInvite();
   await loadAll();
   syncFriendAccess();
+  expiryNotice();
+}
+// Varsel til eieren noen dager før et spor utløper (én gang per dag)
+const EXPIRY_WARN_DAYS = 3;
+function expiryNotice() {
+  if (!isReal()) return;
+  const soon = tracks.filter(t => t.creator === user.uid && t.validTo && !expired(t) && endOfDay(t.validTo) - Date.now() < EXPIRY_WARN_DAYS * DAY);
+  const flagged = tracks.filter(t => t.creator === user.uid && flagCount(t));
+  const key = new Date().toDateString();
+  if ((!soon.length && !flagged.length) || store.get("sp-expiry-notice") === key) return;
+  store.set("sp-expiry-notice", key);
+  const msg = [soon.length ? `${soon.length === 1 ? `«${soon[0].title || "Et spor"}» utløper` : `${soon.length} av sporene dine utløper`} snart` : "",
+    flagged.length ? `${flagged.length === 1 ? `«${flagged[0].title || "Et spor"}» er` : `${flagged.length} spor er`} meldt som ikke riktig lenger` : ""].filter(Boolean).join(", og ");
+  setTimeout(() => toast(`⏳ ${msg}.`, 9000, { label: "Mine spor", fn: openProfile }), 1500);
 }
 // Opplåste spor følger kontoen: slå sammen det som ligger på telefonen med det som ligger i Firebase
 async function syncUnlocks() {
@@ -1699,6 +1981,7 @@ function openProfile() {
       <label>Avstand før spor spilles av</label>
       <div class="seg" id="pf-scale"><button data-s="near">Nær</button><button data-s="normal">Normal</button><button data-s="wide">Vid</button></div>
       <div class="hint">Skalerer radiusen på alle spor (unntatt spor som krever at du er der).</div>
+      <label>Språk jeg forstår</label><div id="pf-langs"></div>
       <label>Inviter venner</label>
       <div class="row"><input type="text" readonly value="${esc(link)}" id="pf-link"><button id="pf-copy">Kopier</button></div>
       <div class="hint">De som åpner lenken og logger inn, kan høre sporene du deler med «Venner».</div>
@@ -1720,7 +2003,7 @@ function openProfile() {
       };
       mbox.appendChild(r);
     });
-    renderMySeqs(); renderMyTracks(); renderRecList();
+    renderMySeqs(); renderMyTracks(); renderRecList(); langPicker($("pf-langs"));
     $("pf-copy").onclick = () => navigator.clipboard.writeText(link).then(() => toast("Lenken er kopiert"));
     $("pf-out").onclick = async () => { await fb.signOut(fb.auth); $("prof-bg").classList.remove("show"); location.reload(); };
     $("pf-save").onclick = saveProfile;
@@ -1787,10 +2070,13 @@ function renderMyTracks() {
     const replies = tracks.filter(x => x.replyTo === t.id).length;
     const r = document.createElement("div"); r.className = "list-row";
     r.innerHTML = `<span><b>${esc(t.title || "Uten navn")}</b>${t.replyTo ? " (svar)" : ""}<br><span class="hint">
-      ${new Date(t.createdAt).toLocaleDateString("nb-NO")} · ${VIS[t.visibility] || ""}${isLocked(t) ? " · " + ACCESS_NAMES[accessOf(t)].toLowerCase() : ""} · ${trackRadius(t)} m${t.review === "pending" ? " · <b>venter på godkjenning</b>" : t.review === "rejected" ? ` · <b>avvist</b>${t.reviewNote ? ": " + esc(t.reviewNote) : ""}` : ""}${t.seqName ? ` · ${esc(t.seqName)} #${t.seqNo}` : ""}<br>
+      ${new Date(t.createdAt).toLocaleDateString("nb-NO")} · ${VIS[t.visibility] || ""}${isLocked(t) ? " · " + ACCESS_NAMES[accessOf(t)].toLowerCase() : ""} · ${trackRadius(t)} m${t.review === "pending" ? " · <b>venter på godkjenning</b>" : t.review === "rejected" ? ` · <b>avvist</b>${t.reviewNote ? ": " + esc(t.reviewNote) : ""}` : ""}${t.seqName ? ` · ${esc(t.seqName)} #${t.seqNo}` : ""}${t.cats?.length ? " · " + t.cats.map(catName).map(esc).join(", ") : ""}${t.lang ? " · " + esc(LANGS[t.lang] || t.lang) : ""}<br>
+      ${expired(t) ? `<span class="stale">⏳ Utløpt ${fmtDate(t.validTo)} – vises ikke. Trykk Rediger og sett en ny til-dato.</span><br>` : notYet(t) ? `Vises fra ${fmtDate(t.validFrom)}<br>` : t.validTo ? `Gjelder til ${fmtDate(t.validTo)}<br>` : ""}
+      ${flagCount(t) ? `<span class="stale">⚠ Meldt som ikke riktig lenger (${flagCount(t)})${flagCount(t) >= FLAG_HIDE ? " – skjult for andre til det er sjekket" : ""}</span><br>` : ""}
       Score ${Math.round(quality(t) * 100)} % · ${Math.round(d.s)} startet · ${Math.round(d.c)} hørt ferdig · ${replies} svar</span></span>
-      <button>Vis</button><button>Rediger</button><button>Slett</button>`;
-    const [show, edit, del] = r.querySelectorAll("button");
+      <button>Vis</button><button>Rediger</button><button>Slett</button>${flagCount(t) ? "<button>Nullstill ⚠</button>" : ""}`;
+    const [show, edit, del, unflag] = r.querySelectorAll("button");
+    if (unflag) unflag.onclick = () => { if (confirm("Har du sjekket at sporet stemmer? Da nullstilles meldingene og sporet vises igjen.")) clearFlags(t); };
     edit.onclick = () => { $("prof-bg").classList.remove("show"); openRecorder({ edit: t }); };
     show.onclick = () => { $("prof-bg").classList.remove("show"); const p = t.replyTo ? byId.get(t.replyTo) || t : t; map.setView([p.lat, p.lng], 17); play(t); };
     del.onclick = async () => {
@@ -1855,13 +2141,26 @@ async function renderAdmin() {
     ${isAdmin() ? `<div class="row" style="margin-top:.4rem"><button id="ad-lost" style="flex:1">🧩 Tapte spor (${lostRaw.filter(x => !archiveMeta[x.id]?.status).length})</button><button id="ad-loud" style="flex:1">🔊 Mål lydstyrke</button></div>` : ""}
     <div class="row" style="margin-top:.4rem"><button id="ad-newest" style="flex:1">🆕 Nyeste spor fra alle brukere</button></div>
     ${isAdmin() ? `<label>Arkiverte nye spor</label><div id="ad-arch"></div>` : ""}
-    ${isAdmin() ? `<label>Brukere og roller</label><div id="ad-users" class="hint">Laster …</div><label>Rapporterte spor</label><div id="ad-reports" class="hint">Laster …</div>` : ""}`;
+    ${isAdmin() ? `<label>Brukere og roller</label><div id="ad-users" class="hint">Laster …</div><label>Rapporterte spor</label><div id="ad-reports" class="hint">Laster …</div>
+      <label>Skjulte merker</label><div class="hint">Upassende merker forsvinner fra ordskyen og fra forslagene.</div><div id="ad-merker"></div>
+      <div class="row" style="margin-top:.3rem"><input type="text" id="ad-merke" placeholder="merke"><button id="ad-merke-go">Skjul</button></div>` : ""}`;
   $("ad-queue").onclick = () => { $("prof-bg").classList.remove("show"); openQueue(); };
   if (!isAdmin()) return;
   $("ad-archive").onclick = () => { $("prof-bg").classList.remove("show"); openArchive(); };
   $("ad-lost").onclick = () => { $("prof-bg").classList.remove("show"); openLost(); };
   $("ad-loud").onclick = () => { $("prof-bg").classList.remove("show"); openLoud(); };
   $("ad-newest").onclick = () => { $("prof-bg").classList.remove("show"); openNewest(); };
+  const saveHidden = async () => {
+    try { await fb.setDoc(fb.doc(fb.db, "sp_config", "tags"), { hidden: [...hiddenMerker] }); drawHidden(); renderCloud(); }
+    catch (e) { toast("Kunne ikke lagre: " + (e.code || e.message) + ". Er de nye sikkerhetsreglene publisert?", 6000); }
+  };
+  const drawHidden = () => {
+    const hb = $("ad-merker"); if (!hb) return;
+    hb.innerHTML = hiddenMerker.size ? "" : '<div class="hint">Ingen.</div>';
+    [...hiddenMerker].sort().forEach(x => { const r = document.createElement("div"); r.className = "list-row"; r.innerHTML = `<span>#${esc(x)}</span><button>Vis igjen</button>`; r.querySelector("button").onclick = () => { hiddenMerker.delete(x); saveHidden(); }; hb.appendChild(r); });
+  };
+  drawHidden();
+  $("ad-merke-go").onclick = () => { const x = normMerke($("ad-merke").value); if (!x) return; hiddenMerker.add(x); $("ad-merke").value = ""; saveHidden(); };
   // Nye spor som er arkivert fra kartet (arkivspor fra den gamle appen finnes under «Rydd arkivet» → Arkivert)
   const arch = tracks.filter(t => !t.legacy && t.archived), ab = $("ad-arch");
   if (!arch.length) ab.innerHTML = '<div class="hint">Ingen.</div>';
@@ -1889,10 +2188,15 @@ async function renderAdmin() {
     rs.forEach(d => {
       const x = d.data(), t = byId.get(x.track);
       const r = document.createElement("div"); r.className = "list-row";
-      r.innerHTML = `<span>${esc(t?.title || x.track)} – ${esc(x.reason || "")}</span><button>Vis</button><button>Ferdig</button>`;
+      const out = x.type === "outdated";
+      r.innerHTML = `<span>${out ? "⚠ " : ""}${esc(t?.title || x.track)} – ${esc(x.reason || "")}${out && t ? ` <span class="hint">(${flagCount(t)} meldinger)</span>` : ""}</span><button>Vis</button><button>${out ? "Kontrollert" : "Ferdig"}</button>`;
       const [show, done] = r.querySelectorAll("button");
       show.onclick = () => { if (t) { $("prof-bg").classList.remove("show"); map.setView([t.lat, t.lng], 16); play(t); } };
-      done.onclick = async () => { await fb.deleteDoc(d.ref); r.remove(); };
+      // «Kontrollert» fjerner også meldingene, så sporet vises igjen
+      done.onclick = async () => {
+        try { await fb.deleteDoc(d.ref); if (out) { await fb.deleteDoc(fb.doc(fb.db, "sp_flags", x.track)).catch(() => {}); delete flags[x.track]; render(); } r.remove(); }
+        catch (e) { toast("Feil: " + (e.code || e.message)); }
+      };
       rb.appendChild(r);
     });
   } catch (e) { $("ad-reports").textContent = "Kunne ikke laste rapporter: " + (e.code || e.message); }
@@ -1901,8 +2205,24 @@ $("me-btn").onclick = openProfile;
 
 // ================= Admin: rydding i arkivet =================
 // Ett spor om gangen. B = behold, U = usikker, A = arkiver (skjules, slettes ikke), → / ← = neste / forrige, mellomrom = spill/pause
-const AR = { list: [], i: 0, area: "view", status: "todo", owner: "", bounds: null, map: null, marker: null, cats: new Set(), access: "map", users: {}, claims: {} };
+const AR = { list: [], i: 0, area: "view", status: "todo", owner: "", need: "", bounds: null, map: null, marker: null, cats: new Set(), access: "map", users: {}, claims: {} };
 const arStatus = id => archiveMeta[id]?.status || "todo";
+// Felles for ryddeverktøyene: kategori (høyst to), merker og språk
+function metaFieldsHtml(px, v) {
+  return `<label>Kategori <span class="hint">(én eller to)</span></label><div class="chips" id="${px}-cats">${CAT_IDS.map(c => `<button type="button" data-c="${c}" class="${v.cats.has(c) ? "on" : ""}">${esc(catLabel(c))}</button>`).join("")}</div>
+    <div class="row" style="flex-wrap:wrap">
+      <div style="flex:2; min-width:180px"><label>Merker</label><input type="text" id="${px}-tags" value="${esc((v.tags || []).join(", "))}" placeholder="skill med komma"></div>
+      <div style="flex:1; min-width:120px"><label>Språk</label><select id="${px}-lang"><option value="">Ukjent</option>${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${v.lang === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
+    </div>`;
+}
+function wireCatChips(px, set) {
+  $(px + "-cats").onclick = e => {
+    const c = e.target.dataset.c; if (!c) return;
+    if (set.has(c)) set.delete(c); else { if (set.size >= 2) set.delete([...set][0]); set.add(c); }
+    $(px + "-cats").querySelectorAll("button").forEach(b => b.classList.toggle("on", set.has(b.dataset.c)));
+  };
+}
+const legacyView = p => normLegacy(p);   // kategori, merker og språk slik sporet vises i dag (også oversatt fra gamle tagger)
 const STATUS_NAMES = { todo: "Ubehandlet", unsure: "Usikker", keep: "Beholdt", archived: "Arkivert", all: "Alle" };
 function ownerLabel(lu) {
   const o = legacyOwners[lu], u = AR.users[lu];
@@ -1924,6 +2244,8 @@ function arFilter(only = null) {
     if (only) return p.id === only;
     if (AR.status !== "all" && arStatus(p.id) !== AR.status) return false;
     if (AR.owner && (archiveMeta[p.id]?.owner || p.creator) !== AR.owner) return false;
+    if (AR.need === "nocat" && legacyView(p).cats.length) return false;
+    if (AR.need === "nolang" && legacyView(p).lang) return false;
     if (AR.area === "view" && AR.bounds && !AR.bounds.contains([p.lat, p.lng])) return false;
     return true;
   }).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
@@ -1942,6 +2264,7 @@ function arRender() {
       <select id="ar-area" style="flex:1"><option value="view" ${AR.area === "view" ? "selected" : ""}>Kartutsnittet</option><option value="all" ${AR.area === "all" ? "selected" : ""}>Hele arkivet</option></select>
       <select id="ar-status" style="flex:1">${Object.entries(STATUS_NAMES).map(([k, v]) => `<option value="${k}" ${AR.status === k ? "selected" : ""}>${v}</option>`).join("")}</select>
       <select id="ar-owner" style="flex:1"><option value="">Alle bidragsytere</option>${ownerOpts}</select>
+      <select id="ar-need" style="flex:1"><option value="">Alle</option><option value="nocat" ${AR.need === "nocat" ? "selected" : ""}>Uten kategori</option><option value="nolang" ${AR.need === "nolang" ? "selected" : ""}>Uten språk</option></select>
     </div>
     <div id="ar-item"></div>`;
   $("ar-x").onclick = arClose;
@@ -1949,19 +2272,20 @@ function arRender() {
   $("ar-area").onchange = e => { AR.area = e.target.value; arFilter(); };
   $("ar-status").onchange = e => { AR.status = e.target.value; arFilter(); };
   $("ar-owner").onchange = e => { AR.owner = e.target.value; arFilter(); };
+  $("ar-need").onchange = e => { AR.need = e.target.value; arFilter(); };
   const it = $("ar-item");
   if (!p) { it.innerHTML = `<p class="hint" style="margin-top:1rem">Ingen spor med dette utvalget. Flytt kartet eller velg «Hele arkivet».</p>`; return; }
   const m = archiveMeta[p.id] || {};
-  const tags = m.tags || p.tags || [];
-  AR.cats = new Set(tags); AR.access = m.access || "map";
-  const allCats = [...new Set([...CATEGORIES, ...tags])];
+  const lv = legacyView(p);
+  AR.cats = new Set(lv.cats); AR.access = m.access || "map";
   const curOwner = m.owner || p.creator;
   it.innerHTML = `<div class="hint" style="margin-top:.7rem">Spor ${AR.i + 1} av ${AR.list.length} · ${STATUS_NAMES[arStatus(p.id)]} · ${p.createdAt ? new Date(p.createdAt).toLocaleDateString("nb-NO") : ""}</div>
     ${p.imageUrl ? `<img src="${esc(p.imageUrl)}" style="width:100%; max-height:200px; object-fit:cover; border-radius:12px; margin-top:.4rem">` : ""}
     <audio id="ar-audio" controls autoplay src="${esc(p.audioUrl)}" style="width:100%; margin-top:.4rem"></audio>
     <label>Tittel</label><input type="text" id="ar-title" value="${esc(m.title ?? p.name ?? "")}">
     <label>Beskrivelse</label><input type="text" id="ar-desc" value="${esc(m.desc ?? p.description ?? "")}">
-    <label>Kategorier</label><div class="chips" id="ar-cats">${allCats.map(c => `<button type="button" data-c="${esc(c)}" class="${AR.cats.has(c) ? "on" : ""}">${esc(c)}</button>`).join("")}</div>
+    ${metaFieldsHtml("ar", { cats: AR.cats, tags: lv.tags, lang: lv.lang })}
+    ${(p.tags || []).length ? `<div class="hint">Gamle tagger: ${(p.tags || []).map(esc).join(", ")}</div>` : ""}
     <div class="row" style="flex-wrap:wrap">
       <div style="flex:1; min-width:180px"><label>Eier</label><select id="ar-own">${Object.keys(owners).map(k => `<option value="${esc(k)}" ${k === curOwner ? "selected" : ""}>${esc(ownerLabel(k))}</option>`).join("")}</select></div>
       <div style="flex:1; min-width:180px"><label>Radius: <b id="ar-rv">${clampRadius(m.radius)} m</b></label><input type="range" id="ar-radius" min="10" max="500" step="5" value="${clampRadius(m.radius)}" style="width:100%"></div>
@@ -1980,7 +2304,7 @@ function arRender() {
     <div class="err" id="ar-err"></div>`;
   seg("ar-access", "a", AR.access);
   $("ar-access").onclick = e => { if (e.target.dataset.a) { AR.access = e.target.dataset.a; seg("ar-access", "a", AR.access); } };
-  $("ar-cats").onclick = e => { const c = e.target.dataset.c; if (!c) return; AR.cats.has(c) ? AR.cats.delete(c) : AR.cats.add(c); e.target.classList.toggle("on"); };
+  wireCatChips("ar", AR.cats);
   $("ar-radius").oninput = e => $("ar-rv").textContent = e.target.value + " m";
   $("ar-keep").onclick = () => arDecide("keep");
   $("ar-unsure").onclick = () => arDecide("unsure");
@@ -1998,7 +2322,8 @@ function arRender() {
 async function arDecide(status) {
   const p = AR.list[AR.i]; if (!p) return;
   const data = {
-    status, title: $("ar-title").value.trim(), desc: $("ar-desc").value.trim(), tags: [...AR.cats],
+    status, title: $("ar-title").value.trim(), desc: $("ar-desc").value.trim(),
+    cats: [...AR.cats].slice(0, 2), tags: parseMerker($("ar-tags").value), lang: $("ar-lang").value || null,
     owner: $("ar-own").value, label: $("ar-ver").checked ? "verified" : "local",
     radius: clampRadius(+$("ar-radius").value), access: AR.access, by: user.uid, at: Date.now()
   };
@@ -2115,7 +2440,7 @@ function loRender() {
   const x = LO.list[LO.i], it = $("lo-item");
   if (!x) { it.innerHTML = '<p class="hint" style="margin-top:1rem">Ingen spor med dette utvalget.</p>'; return; }
   const m = archiveMeta[x.id] || {};
-  LO.cats = new Set(m.tags || []);
+  LO.cats = new Set(m.cats || []);
   LO.pos = m.lat != null ? { lat: m.lat, lng: m.lng } : x.sLat != null ? { lat: x.sLat, lng: x.sLng } : null;
   const when = new Date(x.created);
   const sugg = m.lat != null ? "Plassert tidligere." : x.sLat != null
@@ -2125,7 +2450,7 @@ function loRender() {
     ${x.imageUrl ? `<img src="${esc(x.imageUrl)}" style="width:100%; max-height:200px; object-fit:cover; border-radius:12px; margin-top:.4rem">` : ""}
     <audio id="lo-audio" controls autoplay src="${esc(x.audioUrl)}" style="width:100%; margin-top:.4rem"></audio>
     <label>Tittel</label><input type="text" id="lo-title" value="${esc(m.title ?? x.title ?? "")}" placeholder="Hva handler sporet om?">
-    <label>Kategorier</label><div class="chips" id="lo-cats">${CATEGORIES.map(c => `<button type="button" data-c="${esc(c)}" class="${LO.cats.has(c) ? "on" : ""}">${esc(c)}</button>`).join("")}</div>
+    ${metaFieldsHtml("lo", { cats: LO.cats, tags: m.cats ? m.tags || [] : [], lang: m.lang !== undefined ? m.lang : null })}
     <label>Plassering</label>
     <div class="row"><input type="text" id="lo-q" placeholder="Adresse eller stedsnavn" value="${esc(x.sLat == null && m.lat == null ? (x.title || "") : "")}"><button id="lo-search">Søk</button>${LO.last ? '<button id="lo-last" title="Samme sted som forrige spor du plasserte">↺ Forrige</button>' : ""}</div>
     <div class="hint" id="lo-hint">${sugg}</div>
@@ -2137,7 +2462,7 @@ function loRender() {
       <button id="lo-arch" class="ar-arch">Arkiver <span class="kbd">A</span></button>
       <button id="lo-next">→</button>
     </div><div class="err" id="lo-err"></div>`;
-  $("lo-cats").onclick = e => { const c = e.target.dataset.c; if (!c) return; LO.cats.has(c) ? LO.cats.delete(c) : LO.cats.add(c); e.target.classList.toggle("on"); };
+  wireCatChips("lo", LO.cats);
   $("lo-keep").onclick = () => loDecide("keep");
   $("lo-unsure").onclick = () => loDecide("unsure");
   $("lo-arch").onclick = () => loDecide("archived");
@@ -2176,7 +2501,7 @@ function loSetPos(p, pan = false) {
 async function loDecide(status) {
   const x = LO.list[LO.i]; if (!x) return;
   if (status === "keep" && !LO.pos) { $("lo-err").textContent = "Plasser sporet i kartet først (trykk der det hører hjemme)."; return; }
-  const data = { status, title: $("lo-title").value.trim(), tags: [...LO.cats], owner: x.uid || null, lost: true, label: "local", by: user.uid, at: Date.now() };
+  const data = { status, title: $("lo-title").value.trim(), cats: [...LO.cats].slice(0, 2), tags: parseMerker($("lo-tags").value), ...($("lo-lang").value ? { lang: $("lo-lang").value } : {}), owner: x.uid || null, lost: true, label: "local", by: user.uid, at: Date.now() };
   if (LO.pos) { data.lat = LO.pos.lat; data.lng = LO.pos.lng; }
   try { await fb.setDoc(fb.doc(fb.db, "sp_archive", x.id), data, { merge: true }); archiveMeta[x.id] = { ...archiveMeta[x.id], ...data }; }
   catch (e) { $("lo-err").textContent = "Kunne ikke lagre: " + (e.code || e.message); return; }
@@ -2251,7 +2576,7 @@ function openQueue() {
   list.forEach(t => {
     const r = document.createElement("div"); r.className = "q-item";
     r.innerHTML = `${t.imageUrl ? `<img src="${esc(t.imageUrl)}">` : ""}
-      <div style="margin-top:.3rem"><b>${esc(t.title || "Uten navn")}</b> <span class="hint">av ${esc(t.creatorName || "ukjent")} · ${new Date(t.createdAt).toLocaleDateString("nb-NO")} · ${t.tags.map(esc).join(", ")}</span></div>
+      <div style="margin-top:.3rem"><b>${esc(t.title || "Uten navn")}</b> <span class="hint">av ${esc(t.creatorName || "ukjent")} · ${new Date(t.createdAt).toLocaleDateString("nb-NO")} · ${(t.cats || []).map(catName).map(esc).join(", ")}${t.tags.length ? " · " + t.tags.map(x => "#" + esc(x)).join(" ") : ""}${t.lang ? " · " + esc(LANGS[t.lang] || t.lang) : ""}</span></div>
       ${t.desc ? `<div class="hint">${esc(t.desc)}</div>` : ""}
       ${t.kind === "text" ? `<div class="tts" style="margin-top:.4rem">${esc(t.text || "")}</div>` : `<audio controls preload="none" src="${esc(t.audioUrl)}" style="width:100%; margin-top:.4rem"></audio>`}
       <label style="display:flex; gap:.4rem; align-items:center; color:var(--ink)"><input type="checkbox"> Merk som verifisert</label>
@@ -2284,6 +2609,25 @@ async function report(t) {
   try { await fb.addDoc(fb.collection(fb.db, "sp_reports"), { track: t.id, reason: reason.slice(0, 500), by: user.uid, at: Date.now() }); toast("Takk, rapporten er sendt."); }
   catch (e) { toast("Kunne ikke sende: " + (e.code || e.message)); }
 }
+// «Ikke riktig lenger»: meldingen går til eieren (sporet merkes) og admin (rapport). Flere meldinger skjuler sporet til det er sjekket.
+async function flagOutdated(t) {
+  if (!fb || !user) { toast("Dette krever at innlogging er satt opp."); return; }
+  if ((flags[t.id] || []).includes(user.uid)) { toast("Du har allerede meldt at dette sporet ikke stemmer lenger."); return; }
+  const note = prompt("Hva stemmer ikke lenger? (valgfritt)", "");
+  if (note == null) return;
+  try {
+    await fb.setDoc(fb.doc(fb.db, "sp_flags", t.id), { by: fb.arrayUnion(user.uid), at: Date.now() }, { merge: true });
+    flags[t.id] = [...(flags[t.id] || []), user.uid];
+    await fb.addDoc(fb.collection(fb.db, "sp_reports"), { track: t.id, reason: ("Ikke riktig lenger" + (note.trim() ? ": " + note.trim() : "")).slice(0, 500), type: "outdated", by: user.uid, at: Date.now() });
+    toast(flagCount(t) >= FLAG_HIDE ? "Takk! Sporet skjules til det er sjekket." : "Takk! Eieren og administrator får beskjed.", 4000);
+    render(); renderMyTracksIfOpen();
+  } catch (e) { toast("Kunne ikke melde: " + (e.code || e.message) + ". Er de nye sikkerhetsreglene publisert?", 6000); }
+}
+async function clearFlags(t) {
+  try { await fb.deleteDoc(fb.doc(fb.db, "sp_flags", t.id)); delete flags[t.id]; render(); renderMyTracksIfOpen(); toast("Meldingene er nullstilt, og sporet vises igjen."); }
+  catch (e) { toast("Kunne ikke nullstille: " + (e.code || e.message), 5000); }
+}
+function renderMyTracksIfOpen() { if (document.getElementById("pf-tracks")) renderMyTracks(); }
 async function setLabel(t, label) {
   try { await fb.updateDoc(fb.doc(fb.db, "sp_tracks", t.id), { label }); t.label = label; play(t); render(); }
   catch (e) { toast("Feil: " + (e.code || e.message)); }
@@ -2340,16 +2684,23 @@ function openRecorder({ replyTo = null, recorded = null, edit = null } = {}) {
   if (edit) R.crossPos = null;
   replyTo = R.replyTo;
   $("rec-title").textContent = edit ? "Rediger spor" : replyTo ? `Svar på «${replyTo.title || "spor"}»` : "Nytt lydspor";
-  ["rec-name", "rec-desc", "rec-tags", "rec-textarea", "rec-seq-name", "rec-code", "rec-reveal", "rec-tlimit"].forEach(id => $(id).value = "");
+  ["rec-name", "rec-desc", "rec-tags", "rec-textarea", "rec-seq-name", "rec-code", "rec-reveal", "rec-tlimit", "rec-from", "rec-to"].forEach(id => $(id).value = "");
   $("rec-timed").checked = false; $("rec-timed-box").style.display = "none"; $("rec-limit-box").style.display = "none"; $("rec-reveal-box").style.display = "none";
   if (replyTo && !edit) $("rec-name").value = "Svar: " + (replyTo.title || "");
   $("rec-img").value = ""; $("rec-img-prev").style.display = "none"; $("rec-img-txt").style.display = ""; $("rec-more").open = !!edit;
-  $("rec-rights").checked = false; $("rec-tags").style.display = "none";
+  $("rec-rights").checked = false;
+  // Språk: standardspråket for innspilling, eller sporets språk ved redigering
+  $("rec-lang").innerHTML = Object.entries(LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  $("rec-lang").value = edit ? (edit.lang || recLang) : (replyTo?.lang && replyTo.lang !== "none" ? replyTo.lang : recLang);
+  // Forslag til merker: de du har brukt før
+  const used = {}; tracks.filter(t => t.creator === user.uid).forEach(t => t.tags.forEach(x => used[x] = (used[x] || 0) + 1));
+  $("rec-tag-list").innerHTML = Object.keys(used).filter(x => !hiddenMerker.has(x)).sort((a, b) => used[b] - used[a]).map(x => `<option value="${esc(x)}">`).join("");
   $("rec-radius").max = maxRadius(); $("rec-radius").value = DEFAULT_RADIUS;
   $("rec-preview").style.display = "none"; $("rec-time").textContent = fmtTime(maxSeconds()); $("rec-time").classList.remove("warn"); $("rec-err").textContent = "";
   $("rec-limit").textContent = `Maks ${fmtTime(maxSeconds())}. Støy dempes automatisk av nettleseren.`;
   $("rec-adv-place").style.display = replyTo ? "none" : "";
   $("rec-cat-box").style.display = replyTo ? "none" : "";
+  $("rec-valid").style.display = replyTo ? "none" : "";
   $("rec-edit-note").style.display = edit && R.kind === "audio" ? "" : "none";
   $("rec-switch").parentElement.style.display = edit ? "none" : "";
   $("rec-pos-keep").style.display = edit ? "" : "none";
@@ -2364,9 +2715,10 @@ function openRecorder({ replyTo = null, recorded = null, edit = null } = {}) {
   $("rec-vis").querySelector('[data-v="public"]').style.display = edit && !canPublic() && edit.review !== "pending" ? "none" : "";
   if (edit) {
     $("rec-name").value = edit.title || ""; $("rec-desc").value = edit.desc || "";
-    const known = (edit.tags || []).filter(c => CATEGORIES.includes(c)), own = (edit.tags || []).filter(c => !CATEGORIES.includes(c));
-    known.forEach(c => R.cats.add(c));
-    if (own.length) { $("rec-tags").value = own.join(", "); $("rec-tags").style.display = ""; }
+    (edit.cats || []).forEach(c => R.cats.add(c));
+    $("rec-tags").value = (edit.tags || []).join(", ");
+    if (edit.validFrom) $("rec-from").value = isoDate(edit.validFrom);
+    if (edit.validTo) $("rec-to").value = isoDate(edit.validTo);
     if (R.kind === "text") { $("rec-textarea").value = edit.text || ""; $("rec-rights").checked = true; $("rec-textarea").oninput(); }
     if (edit.imageUrl) { $("rec-img-prev").src = edit.imageUrl; $("rec-img-prev").style.display = "block"; $("rec-img-txt").style.display = "none"; }
     R.vis = edit.review === "pending" ? "public" : (edit.visibility || "friends");
@@ -2488,21 +2840,31 @@ function updateSummary() {
   seg("rec-revealmode", "r", R.reveal);
   const seqTxt = $("rec-seq").value === "new" ? ($("rec-timed").checked ? "ny sekvens med tidtaking" : "ny sekvens") : $("rec-seq").value ? "i sekvens" : "ingen sekvens";
   const hasCode = !$("rec-code-clear").checked && ($("rec-code").value.trim() || R.edit?.codeHash?.length);
-  $("rec-sum").textContent = R.replyTo ? "" : ` · Radius ${$("rec-radius").value} m · ${ACCESS_NAMES[R.access]}${showReveal && R.reveal === "site" ? " til man er der" : ""} · ${seqTxt}${hasCode ? " · kodeord" : ""}`;
+  const lv = $("rec-lang").value, from = dateVal("rec-from"), to = dateVal("rec-to");
+  const validTxt = from || to ? ` · ${from ? "fra " + fmtDate(from) : ""}${from && to ? " " : ""}${to ? "til " + fmtDate(to) : ""}` : "";
+  $("rec-sum").textContent = R.replyTo ? ` · ${LANGS[lv] || ""}` : ` · ${LANGS[lv] || ""} · Radius ${$("rec-radius").value} m · ${ACCESS_NAMES[R.access]}${showReveal && R.reveal === "site" ? " til man er der" : ""} · ${seqTxt}${hasCode ? " · kodeord" : ""}${validTxt}`;
   renderSeqOverview();
 }
+// Ni faste kategorier, høyst to per spor. «Sikkerhet og myndighetsinfo» bare for offentlige organer.
 function renderCats() {
   const box = $("rec-cats"); box.innerHTML = "";
-  [...CATEGORIES, "+ Egen"].forEach(c => {
-    const b = document.createElement("button"); b.type = "button"; b.textContent = c;
+  CAT_IDS.filter(c => c !== "official" || canOfficial() || R.cats.has(c)).forEach(c => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = catLabel(c);
     b.className = R.cats.has(c) ? "on" : "";
     b.onclick = () => {
-      if (c === "+ Egen") { const i = $("rec-tags"); i.style.display = i.style.display === "none" ? "" : "none"; if (i.style.display === "") i.focus(); return; }
-      R.cats.has(c) ? R.cats.delete(c) : R.cats.add(c); b.classList.toggle("on");
+      if (R.cats.has(c)) R.cats.delete(c);
+      else { if (R.cats.size >= 2) R.cats.delete([...R.cats][0]); R.cats.add(c); }
+      // Veiinfo, Nabolaget og myndighetsinfo blir fort utdatert: åpne avansert, så datoene synes
+      if (DATED_CATS.includes(c) && R.cats.has(c) && !$("rec-more").open) { $("rec-more").open = true; setTimeout(() => $("rec-valid").scrollIntoView({ block: "center", behavior: "smooth" }), 50); }
+      renderCats(); updateSummary();
     };
     box.appendChild(b);
   });
 }
+const isoDate = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const dateVal = id => { const v = $(id).value; return v ? new Date(v + "T00:00").getTime() : null; };
+$("rec-lang").onchange = () => updateSummary();
+$("rec-from").onchange = $("rec-to").onchange = () => updateSummary();
 $("rec-switch").onclick = e => { e.preventDefault(); setKind(R.kind === "audio" ? "text" : "audio"); };
 $("rec-x").onclick = () => $("rec-cancel").click();
 $("rec-img").onchange = () => {
@@ -2620,6 +2982,9 @@ $("rec-save").onclick = async () => {
     const lim = $("rec-tlimit").value.trim();
     if (lim) { seqLimit = Math.round(parseFloat(lim.replace(",", "."))); if (!(seqLimit > 0 && seqLimit <= 24 * 60)) { err.textContent = "Tidsfristen må være et antall minutter (1–1440), eller tom."; return; } }
   }
+  const validFrom = R.replyTo ? null : dateVal("rec-from"), validTo = R.replyTo ? null : dateVal("rec-to");
+  if (validFrom && validTo && validTo < validFrom) { err.textContent = "Til-datoen kan ikke være før fra-datoen."; return; }
+  if (validTo && endOfDay(validTo) < Date.now()) { err.textContent = "Til-datoen er passert, så sporet ville vært skjult med en gang."; return; }
   const codeRaw = R.replyTo ? "" : $("rec-code").value.trim();
   const codeHash = codeRaw ? await codeHashes(codeRaw) : null;
   const btn = $("rec-save"); btn.disabled = true; btn.textContent = "Laster opp …";
@@ -2641,7 +3006,8 @@ $("rec-save").onclick = async () => {
     }
     const data = {
       title, desc: $("rec-desc").value.trim(),
-      tags: [...new Set([...R.cats, ...$("rec-tags").value.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)])],
+      cats: R.replyTo ? [] : [...R.cats].slice(0, 2), tags: R.replyTo ? [] : parseMerker($("rec-tags").value),
+      lang: $("rec-lang").value || recLang, validFrom, validTo,
       lat: pos.lat, lng: pos.lng, kind: R.kind, audioUrl, imageUrl, text: text || null,
       duration: R.kind === "audio" ? Math.round(R.duration) : Math.round((text.match(/\S+/g) || []).length / WORDS_PER_90S * 90),
       creator: user.uid, creatorName: profile?.name || user.displayName || "", creatorIcon: profile?.iconUrl || null,
@@ -2675,9 +3041,11 @@ $("rec-save").onclick = async () => {
 // ---- Lagre endringer i et eksisterende spor ----
 async function saveEdit(title) {
   const err = $("rec-err"), t = R.edit;
-  const upd = { title, desc: $("rec-desc").value.trim() };
+  const upd = { title, desc: $("rec-desc").value.trim(), lang: $("rec-lang").value || null };
   if (!R.replyTo) {
-    upd.tags = [...new Set([...R.cats, ...$("rec-tags").value.split(",").map(x => x.trim().toLowerCase()).filter(Boolean)])];
+    upd.cats = [...R.cats].slice(0, 2); upd.tags = parseMerker($("rec-tags").value); upd.internal = t.internal || [];
+    upd.validFrom = dateVal("rec-from"); upd.validTo = dateVal("rec-to");
+    if (upd.validFrom && upd.validTo && upd.validTo < upd.validFrom) { err.textContent = "Til-datoen kan ikke være før fra-datoen."; return; }
     upd.radius = Math.min(maxRadius(), clampRadius(+$("rec-radius").value));
     upd.access = R.access; upd.hidden = R.access === "hidden";
     upd.reveal = R.access === "hidden" && $("rec-seq").value && R.reveal === "site" ? "site" : null;
@@ -2831,7 +3199,7 @@ const INTRO = [
   { ico: "📍", h: "Velkommen til SoundPin", show: true, txt: `<p style="text-align:center; margin-top:0">Historier om stedet der du er – fortalt med ekte stemmer. Hva vil du lage?</p>
     <div class="show-uc" id="in-uc" title="Se bruksområdene"><div class="i" id="in-uc-i"></div><div class="c" id="in-uc-c"></div><div class="m">…og mange andre måter</div></div>
     <button class="primary" id="in-uc-go" style="width:100%; margin-top:.7rem; padding:.7rem">💡 Se hva du kan lage</button>` },
-  { ico: "🎧", h: "Lytte", txt: `<ul><li>Trykk på en prikk i kartet for å høre sporet.</li><li>Trykk <b>🚶 Gå</b>, så spilles sporene av automatisk når du nærmer deg dem.</li><li>🔒 betyr at du må være på stedet én gang for å låse opp sporet.</li><li>Kategoriene øverst og 👤-lista filtrerer kartet.</li></ul>` },
+  { ico: "🎧", h: "Lytte", txt: `<ul><li>Trykk på en prikk i kartet for å høre sporet.</li><li>Velg modus øverst: <b>🛋 Sofa</b> for å trykke deg rundt hjemmefra, <b>🚶 Forflytning</b> når sporene skal spilles av automatisk der du går, kjører eller seiler, og <b>🧩 Aktivitet</b> for quiz, rebus og løp.</li><li>🔒 betyr at du må være på stedet én gang for å låse opp sporet.</li><li>Kategoriene og #merkene øverst filtrerer kartet, sammen med innspiller- og språklista.</li></ul>` },
   { ico: "🚗", h: "I bil og båt", txt: `<ul><li>Når du kjører, bytter appen til en enkel visning med stort bilde og tittel.</li><li>Bare korte spor spilles, og mer tekst vises først når du står stille.</li><li>Ha blikket der du ferdes – sporene kommer av seg selv.</li></ul>` },
   { ico: "🎙", h: "Lage spor", txt: `<ul><li><b>Hold inne krysset</b> midt i kartet og snakk. Slipp for å lagre. Nedtellingen viser hvor lang tid du har igjen.</li><li><b>Trykk</b> på krysset for flere valg: skrive tekst, bilde, radius, skjult spor, sekvens, kodeord og tidtaking.</li><li>Du må logge inn (👤) for å lage spor.</li></ul>` },
   { ico: "👥", h: "Dele og følge", txt: `<ul><li>Velg hvem som kan høre sporet: <b>Bare meg</b>, <b>Venner</b> eller <b>Alle</b>.</li><li>Inviter venner med lenken i profilen, og bruk <b>📣 Utfordre</b> for å få andre til å fortelle sin historie.</li><li><b>☆ Følg</b> innspillere du liker, og <b>🔕 Demp</b> dem du ikke vil høre.</li></ul>` },
@@ -2884,14 +3252,14 @@ $("spw-guide").addEventListener("touchend", e => { if (inX == null) return; cons
 // ================= Bruksområder =================
 // Eksempler som bruker funksjonene appen allerede har. «Prøv» åpner skjemaet med riktige valg.
 const USE_CASES = [
-  { ico: "🚗", h: "Spørrekonkurranse på vei til hytta", s: "Quiz på vei til hytta", txt: "Lag en quiz langs veien som familien hører i bilen. Still spørsmålet i ett spor og gi svaret i neste – eller bruk kodeord. Del med gjestene, og avslutt med et spor som forklarer hvor de parkerer.", how: "Ny sekvens · kategori quiz · del med venner", preset: { cats: ["quiz"], seq: "Quiz til hytta", vis: "friends" } },
-  { ico: "💌", h: "Hilsen der dere møttes første gang", s: "Hilsen der dere møttes", txt: "Legg igjen en hilsen til kjæresten din på stedet der dere møttes. Gjør sporet skjult, og send lenken bare til henne eller ham.", how: "Skjult skattejakt · bare meg · del lenken", preset: { access: "hidden", vis: "private", radius: 30 } },
-  { ico: "🏘", h: "Fortell om nabolaget ditt", txt: "Hvem bygde huset på hjørnet? Hva skjedde på løkka? Legg spor ved stedene, gjerne som en vandring i en sekvens.", how: "Spor ved hvert sted · gjerne sekvens", preset: { cats: ["lokalhistorie"] } },
-  { ico: "🗣", h: "Dialektreisen fra sør til nord", txt: "Fortell en artig historie på din dialekt der du bor, og utfordre noen du kjenner til å gjøre det samme et annet sted. Så kan andre reise gjennom landet og følge dialektene.", how: "Kategori dialekt · 📣 Utfordre en venn", preset: { cats: ["dialekt"], vis: "public" } },
-  { ico: "🕰", h: "Memory lane", txt: "Fortell et minne fra et sted, og utfordre venner til å fortelle sine minner fra samme sted med «💬 Svar». Som et fotoalbum – bare med ekte stemmer.", how: "Kategori minner · 📣 Utfordre · 💬 Svar", preset: { cats: ["minner"] } },
-  { ico: "❓", h: "Quizrunde i nabolaget", s: "Quizrunde i nabolaget", txt: "Lag en runde der deltakerne må gå til hver post for å høre spørsmålet. Første post står i kartet med hengelås. De neste er skjult og dukker opp én og én når forrige spørsmål er besvart.", how: "Ny sekvens · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Quizrunde", cats: ["quiz"], radius: 30 } },
-  { ico: "🗝", h: "Rebusløp med gjemte spor", s: "Rebusløp med tidtaking", txt: "Gjem postene som skjulte spor i en sekvens. Hver post gir et hint og ber om et kodeord før neste post dukker opp. Slå på tidtaking og se hvem som er raskest.", how: "Ny sekvens med tidtaking · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Rebusløp", timed: true, cats: ["quiz"], radius: 30 } },
-  { ico: "⛵", h: "SoundPin-regatta", txt: "Legg ut spor som merker båtene må innom i rekkefølge. Del erfaringer om farvannet ved hvert merke – strøm, grunner, gode ankringsplasser. Tiden går fra første til siste merke, gjerne med tidsfrist.", how: "Ny sekvens med tidtaking · radius fra 20 m · kategori seiling", preset: { seq: "Regatta", timed: true, cats: ["seiling"], radius: 50 } }
+  { ico: "🚗", h: "Spørrekonkurranse på vei til hytta", s: "Quiz på vei til hytta", txt: "Lag en quiz langs veien som familien hører i bilen. Still spørsmålet i ett spor og gi svaret i neste – eller bruk kodeord. Del med gjestene, og avslutt med et spor som forklarer hvor de parkerer.", how: "Ny sekvens · merke quiz · del med venner", preset: { cats: ["fun"], tags: ["quiz"], seq: "Quiz til hytta", vis: "friends" } },
+  { ico: "💌", h: "Hilsen der dere møttes første gang", s: "Hilsen der dere møttes", txt: "Legg igjen en hilsen til kjæresten din på stedet der dere møttes. Gjør sporet skjult, og send lenken bare til henne eller ham.", how: "Skjult skattejakt · bare meg · del lenken", preset: { cats: ["memories"], access: "hidden", vis: "private", radius: 30 } },
+  { ico: "🏘", h: "Fortell om nabolaget ditt", txt: "Hvem bygde huset på hjørnet? Hva skjedde på løkka? Legg spor ved stedene, gjerne som en vandring i en sekvens.", how: "Spor ved hvert sted · gjerne sekvens", preset: { cats: ["history"] } },
+  { ico: "🗣", h: "Dialektreisen fra sør til nord", txt: "Fortell en artig historie på din dialekt der du bor, og utfordre noen du kjenner til å gjøre det samme et annet sted. Så kan andre reise gjennom landet og følge dialektene.", how: "Historie og dialekt · merke dialekt · 📣 Utfordre en venn", preset: { cats: ["history"], tags: ["dialekt"], vis: "public" } },
+  { ico: "🕰", h: "Memory lane", txt: "Fortell et minne fra et sted, og utfordre venner til å fortelle sine minner fra samme sted med «💬 Svar». Som et fotoalbum – bare med ekte stemmer.", how: "Minner og historier · 📣 Utfordre · 💬 Svar", preset: { cats: ["memories"] } },
+  { ico: "❓", h: "Quizrunde i nabolaget", s: "Quizrunde i nabolaget", txt: "Lag en runde der deltakerne må gå til hver post for å høre spørsmålet. Første post står i kartet med hengelås. De neste er skjult og dukker opp én og én når forrige spørsmål er besvart.", how: "Ny sekvens · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Quizrunde", cats: ["fun"], tags: ["quiz"], radius: 30 } },
+  { ico: "🗝", h: "Rebusløp med gjemte spor", s: "Rebusløp med tidtaking", txt: "Gjem postene som skjulte spor i en sekvens. Hver post gir et hint og ber om et kodeord før neste post dukker opp. Slå på tidtaking og se hvem som er raskest.", how: "Ny sekvens med tidtaking · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Rebusløp", timed: true, cats: ["fun"], tags: ["rebus"], radius: 30 } },
+  { ico: "⛵", h: "SoundPin-regatta", txt: "Legg ut spor som merker båtene må innom i rekkefølge. Del erfaringer om farvannet ved hvert merke – strøm, grunner, gode ankringsplasser. Tiden går fra første til siste merke, gjerne med tidsfrist.", how: "Ny sekvens med tidtaking · radius fra 20 m · merke seiling", preset: { seq: "Regatta", timed: true, cats: ["nature"], tags: ["seiling"], radius: 50 } }
 ];
 function openHelp() {
   const box = $("help");
@@ -2899,11 +3267,13 @@ function openHelp() {
     <p class="hint">Her er noen eksempler på hva du kan lage med SoundPin. «Prøv» åpner skjemaet for nytt spor med valgene ferdig satt – du tar opp der krysset står.</p>
     ${USE_CASES.map((u, i) => `<div class="uc"><h3>${u.ico} ${esc(u.h)}</h3><p>${esc(u.txt)}</p><div class="row"><span class="hint" style="flex:1">${esc(u.how)}</span><button data-uc="${i}" class="primary">Prøv</button></div></div>`).join("")}
     <div class="uc" style="background:#fff6f2; border-color:#f3c9b9"><h3>✨ …og mange andre måter</h3><p>Guidet tur for turister, skattejakt i bursdagen, historielagets vandring, natursti for skoleklassen, tips til fiskeplasser, en hilsen til barnebarna på hytta. Bare fantasien setter grenser – lag ditt eget spor og se hva andre finner på.</p><div class="row"><span class="hint" style="flex:1">Hold inne krysset i kartet for å begynne</span><button data-uc="free">Lag et spor</button></div></div>
+    <details class="uc"><summary><b>🌐 Språk jeg forstår</b></summary><div id="help-langs" style="margin-top:.4rem"></div></details>
     <div class="footer"><button id="help-intro">▶ Se introduksjonen</button><button id="help-close">Lukk</button></div>
     <div class="hint" style="text-align:center; margin-top:.5rem">SoundPin versjon ${APP_VERSION}</div>`;
   const close = () => $("help-bg").classList.remove("show");
   $("help-x").onclick = close; $("help-close").onclick = close;
   $("help-intro").onclick = () => { close(); showIntro(0); };
+  langPicker($("help-langs"));
   box.querySelectorAll("[data-uc]").forEach(b => b.onclick = () => {
     close();
     if (b.dataset.uc === "free") { if (canRecord()) { R.crossPos = map.getCenter(); openRecorder({}); setPos("map"); } return; }
@@ -2918,6 +3288,7 @@ function tryUseCase(u) {
   setPos("map");
   const p = u.preset || {};
   (p.cats || []).forEach(c => R.cats.add(c)); renderCats();
+  if (p.tags) $("rec-tags").value = p.tags.join(", ");
   if (p.vis) setVis(p.vis);
   if (p.access) setAccess(p.access);
   if (p.radius) setRadius(p.radius);
@@ -2954,8 +3325,38 @@ function hideTeaser() { clearTimeout(TS.timer); $("spw-hint").classList.remove("
 $("spw-hint").onclick = e => { if (e.target.id === "ts-x") return; hideTeaser(); openHelp(); };
 $("ts-x").onclick = e => { e.stopPropagation(); hideTeaser(); };
 
+// ================= Ny versjon =================
+// Ved oppstart og når appen kommer tilbake i forgrunnen hentes index.html uten mellomlager. Er versjonen nyere,
+// vises «Ny versjon X – trykk for å oppdatere». Trykket laster siden med ?v=X, så nettleserens gamle kopi omgås.
+// Ikke under et løp med tidtaking eller en aktiv sekvens: da vises meldingen når sekvensen er avsluttet.
+const verNum = v => String(v).split(".").map(n => parseInt(n, 10) || 0);
+function isNewer(a, b) { const x = verNum(a), y = verNum(b); for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); return false; }
+let newVersion = null, lastVerCheck = 0;
+async function checkVersion(force = false) {
+  if (!force && Date.now() - lastVerCheck < 60000) return;
+  lastVerCheck = Date.now();
+  try {
+    const txt = await (await fetch(location.pathname + "?nc=" + Date.now(), { cache: "no-store" })).text();
+    const m = txt.match(/const APP_VERSION = "([^"]+)"/);
+    if (m && isNewer(m[1], APP_VERSION)) { newVersion = m[1]; showUpdate(); }
+  } catch (e) { console.info("Versjonssjekk feilet", e); }
+}
+function showUpdate() {
+  const b = $("upd");
+  if (!newVersion || run || activeSeq) { b.classList.remove("show"); return; }
+  b.textContent = `Ny versjon ${newVersion} – trykk for å oppdatere`; b.classList.add("show");
+}
+$("upd").onclick = () => {
+  const q = new URLSearchParams(location.search); q.set("v", newVersion.replace(/\D/g, ""));
+  location.href = location.pathname + "?" + q.toString();
+};
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVersion(); });
+setInterval(() => checkVersion(), 30 * 60000);
+window.addEventListener("pagehide", () => { if (playSess) endPlay("other"); });
+
 // ================= Oppstart =================
 (async () => {
+  setTimeout(() => checkVersion(true), 4000);
   // Introduksjonen vises ved oppstart, men ikke når appen åpnes fra en lenke til et spor eller en invitasjon
   const qs0 = new URLSearchParams(location.search);
   if (qs0.has("intro")) store.set("sp-intro-off", false);            // ?intro tvinger fram introduksjonen
