@@ -2,6 +2,12 @@
 
 En tjeneste som leser opp historier om nærmiljøet mens du beveger deg ute.
 
+## Versjon 9 (25. november 2026)
+
+- **Dagens tips:** hver gang appen åpnes, vises ett bruksområde med «▶ Hør et eksempel» og «Prøv selv». Tipsene kommer på rundgang, og hilsenen kommer oftere. Tipsene kan slås av under «?».
+- **Eksempelspor:** admin velger med «💡 Bruk som eksempel» i spilleren (`sp_config/tips`). Uten valg foreslås et spor som er verifisert eller hørt ferdig av flere, på et språk lytteren forstår.
+- **Bruksområdene** er ordnet etter modus: 21 i alt. «Prøv» setter også modus, kategori, merke og dato.
+
 ## Versjon 8 (25. november 2026)
 
 - **Oppdatering:** appen sjekker ved oppstart, når den kommer tilbake i forgrunnen, og hver halvtime om det finnes en nyere `APP_VERSION`. Da vises «Ny versjon X – trykk for å oppdatere», men ikke mens en sekvens eller et løp pågår.

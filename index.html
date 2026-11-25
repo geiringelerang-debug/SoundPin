@@ -278,25 +278,30 @@
   #spw-guide .dots i.on { background: var(--accent); }
   #spw-guide .nav { display: flex; gap: .5rem; align-items: center; }
   #spw-guide .nav .sp { flex: 1; }
-  /* Kort animasjon ved oppstart som frister med bruksområdene */
+  /* Dagens tips: ett bruksområde hver gang appen åpnes, med eksempelspor */
   #spw-hint {
     position: fixed; left: 50%; transform: translateX(-50%); top: calc(var(--hdr, calc(env(safe-area-inset-top) + 8.6rem)) + .6rem); z-index: 1550;
-    background: #fff; border: 2px solid var(--accent); border-radius: 16px; box-shadow: 0 6px 24px #e4572e55; padding: .55rem .5rem .55rem .9rem;
-    display: none; align-items: center; gap: .6rem; width: min(92vw, 380px); cursor: pointer;
+    background: #fff; border: 2px solid var(--accent); border-radius: 16px; box-shadow: 0 6px 24px #e4572e55; padding: .55rem .7rem .7rem .9rem;
+    display: none; width: min(92vw, 400px); box-sizing: border-box;
   }
-  #spw-hint.show { display: flex; animation: tsIn .5s cubic-bezier(.3, 1.6, .5, 1); }
-  #spw-hint .item .i { animation: pop .5s cubic-bezier(.3, 1.6, .5, 1); }
-  #spw-hint .lead { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-  #spw-hint .slot { flex: 1; min-width: 0; height: 2.9rem; overflow: hidden; position: relative; }
-  #spw-hint .item { position: absolute; inset: 0; display: flex; align-items: center; gap: .55rem; font-size: .95rem; font-weight: 600; animation: tsItem .45s ease-out; }
-  #spw-hint .item .i { font-size: 1.5rem; flex: none; }
-  #spw-hint .item .h { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #spw-hint .item > span:last-child { min-width: 0; flex: 1; }
-  #spw-hint .item.end { font-weight: 500; font-size: .88rem; line-height: 1.25; }
-  #spw-hint .go { background: var(--accent); color: #fff; font-size: .8rem; padding: .35rem .7rem; }
+  #spw-hint.show { display: block; animation: tsIn .5s cubic-bezier(.3, 1.6, .5, 1); }
+  body.car #spw-hint { display: none !important; }
+  #spw-hint .spw-top { display: flex; align-items: center; }
+  #spw-hint .spw-top .sp { flex: 1; }
+  #spw-hint .lead { font-size: .72rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  #spw-hint .spw-body { display: flex; gap: .6rem; align-items: flex-start; margin-top: .2rem; }
+  #spw-hint .spw-body .i { font-size: 1.8rem; line-height: 1; flex: none; animation: pop .5s cubic-bezier(.3, 1.6, .5, 1); }
+  #spw-hint .h { font-weight: 700; font-size: 1rem; }
+  #spw-hint .t { font-size: .85rem; color: #444; margin-top: .15rem; line-height: 1.3; }
+  #spw-hint .spw-first { font-size: .78rem; color: var(--muted); margin-top: .4rem; }
+  #spw-hint .spw-first:empty { display: none; }
+  #spw-hint .spw-btns { display: flex; gap: .4rem; justify-content: flex-end; margin-top: .55rem; }
+  #spw-hint .spw-btns button { font-size: .85rem; padding: .4rem .8rem; }
   #spw-hint .x { background: none; color: var(--muted); padding: .2rem .4rem; font-size: .9rem; }
   @keyframes tsIn { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
-  @keyframes tsItem { from { opacity: 0; transform: translateY(70%); } to { opacity: 1; transform: none; } }
+  .uc-mode { margin: 1rem 0 .3rem; font-size: 1rem; }
+  .uc-mode + .hint { margin-top: 0; }
+  .uc .ex { font-size: .8rem; color: var(--muted); margin-top: .3rem; }
   #help-btn.pulse { animation: pulse 1.1s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 #e4572e88; } 50% { box-shadow: 0 0 0 8px #e4572e00; background: var(--accent); color: #fff; } }
   .show-uc { background: linear-gradient(135deg, #fff3ee, #ffe3d8); border-radius: 16px; padding: .9rem .6rem .7rem; text-align: center; cursor: pointer; }
@@ -388,10 +393,11 @@
 </div></div>
 
 <!-- Oppstart: frister med bruksområdene -->
-<div id="spw-hint" title="Se bruksområdene">
-  <div class="slot" id="ts-slot"></div>
-  <button class="go" id="ts-go">Prøv</button>
-  <button class="x" id="ts-x" title="Lukk">✕</button>
+<div id="spw-hint">
+  <div class="spw-top"><span class="lead">💡 Dagens tips</span><span class="sp"></span><button class="x" id="ts-x" title="Lukk">✕</button></div>
+  <div class="spw-body"><span class="i" id="ts-i"></span><div style="min-width:0"><div class="h" id="ts-h"></div><div class="t" id="ts-t"></div></div></div>
+  <div class="spw-first" id="ts-first"></div>
+  <div class="spw-btns"><button id="ts-ex">▶ Hør et eksempel</button><button class="go primary" id="ts-go">Prøv selv</button></div>
 </div>
 
 <!-- Hjelp: bruksområder -->
@@ -647,7 +653,7 @@ const DAY = 864e5;
 const TARGET_LOUD = -16;            // mål (LUFS), som podkaster og strømmetjenester
 const GAIN_MIN_DB = -12, GAIN_MAX_DB = 18;
 const ARCHIVE_NAME = "SoundPin-arkivet";
-const APP_VERSION = "8.0";           // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
+const APP_VERSION = "9.0";           // vises i bruksområdene, så det er lett å se hvilken versjon telefonen har lastet
 
 // ================= Tilstand =================
 const store = {
@@ -1280,6 +1286,10 @@ function renderActions(t) {
   });
   if (fb && user && t.legacy && isAdmin()) add("🧹 Rydd", () => { $("close").click(); openArchive({ only: t.id }); });
   if (fb && user && isAdmin() && !isOwn(t)) add("🗄 Arkiver", () => archiveTrack(t));
+  if (fb && user && isAdmin() && exampleOk(t)) {
+    const n = USE_CASES.filter(u => tipsCfg[u.id] === t.id).length;
+    add(n ? `💡 Eksempel (${n})` : "💡 Bruk som eksempel", () => openHelp({ pickFor: t }));
+  }
   if (fb && user && !t.legacy && isOwn(t)) add("✏️ Rediger", () => openRecorder({ edit: t }));
   if (fb && user && !t.legacy && isOwn(t)) add("🗑 Slett", () => removeTrack(t));
 }
@@ -1732,8 +1742,11 @@ async function loadAll() {
     catch (e) { console.warn("Meldinger om «ikke riktig lenger» ikke lastet", e.code || e); }
     try { const c = await fb.getDoc(fb.doc(fb.db, "sp_config", "tags")); hiddenMerker = new Set(c.exists() ? c.data().hidden || [] : []); }
     catch (e) { console.warn("Skjulte merker ikke lastet", e.code || e); }
+    try { const c = await fb.getDoc(fb.doc(fb.db, "sp_config", "tips")); tipsCfg = c.exists() ? c.data().ex || {} : {}; }
+    catch (e) { console.warn("Eksempelspor ikke lastet", e.code || e); }
   }
   setTracks([...legacyAll(), ...fresh]);
+  if (fb) tipWhenReady();
 }
 
 // ================= Firebase =================
@@ -3203,7 +3216,7 @@ const INTRO = [
   { ico: "🚗", h: "I bil og båt", txt: `<ul><li>Når du kjører, bytter appen til en enkel visning med stort bilde og tittel.</li><li>Bare korte spor spilles, og mer tekst vises først når du står stille.</li><li>Ha blikket der du ferdes – sporene kommer av seg selv.</li></ul>` },
   { ico: "🎙", h: "Lage spor", txt: `<ul><li><b>Hold inne krysset</b> midt i kartet og snakk. Slipp for å lagre. Nedtellingen viser hvor lang tid du har igjen.</li><li><b>Trykk</b> på krysset for flere valg: skrive tekst, bilde, radius, skjult spor, sekvens, kodeord og tidtaking.</li><li>Du må logge inn (👤) for å lage spor.</li></ul>` },
   { ico: "👥", h: "Dele og følge", txt: `<ul><li>Velg hvem som kan høre sporet: <b>Bare meg</b>, <b>Venner</b> eller <b>Alle</b>.</li><li>Inviter venner med lenken i profilen, og bruk <b>📣 Utfordre</b> for å få andre til å fortelle sin historie.</li><li><b>☆ Følg</b> innspillere du liker, og <b>🔕 Demp</b> dem du ikke vil høre.</li></ul>` },
-  { ico: "💡", h: "Hva kan du bruke det til?", txt: `<p>Quiz på vei til hytta, en hilsen der dere møttes, rebusløp, regatta, dialektreise og mye mer.</p><p>Trykk <b>?</b> øverst når som helst for å se bruksområdene og denne introduksjonen igjen.</p>`, last: true }
+  { ico: "💡", h: "Hva kan du bruke det til?", txt: `<p>En hilsen til en du er glad i, veitips, turistguide, quiz på vei til hytta, rebusløp, regatta, dialektreise og mye mer.</p><p><b>Hver gang du åpner SoundPin, får du et tips</b> – med et eksempel du kan høre. Trykk <b>?</b> øverst når som helst for å se alle bruksområdene og denne introduksjonen igjen.</p>`, last: true }
 ];
 let introAt = 0;
 function showIntro(i = 0) {
@@ -3250,80 +3263,189 @@ $("spw-guide").addEventListener("touchstart", e => inX = e.touches[0].clientX, {
 $("spw-guide").addEventListener("touchend", e => { if (inX == null) return; const dx = e.changedTouches[0].clientX - inX; inX = null; if (Math.abs(dx) > 50) showIntro(introAt + (dx < 0 ? 1 : -1)); });
 
 // ================= Bruksområder =================
-// Eksempler som bruker funksjonene appen allerede har. «Prøv» åpner skjemaet med riktige valg.
+// Ordnet etter modus. «Prøv selv» åpner skjemaet med valgene ferdig satt og setter modusen.
+// «▶ Hør et eksempel» spiller et godt spor med dette innholdet: valgt av admin (sp_config/tips), ellers sporet med best lyttescore.
+// w: hvor ofte bruksområdet kommer som dagens tips. eve: oftere om kvelden. car: oftere når man kjører.
+const MODE_INFO = {
+  sofa: { ico: "🛋", h: "Sofa", txt: "Lytt og lag hjemmefra." },
+  move: { ico: "🚶", h: "Forflytning", txt: "Sporene kommer av seg selv der du går, kjører eller seiler." },
+  activity: { ico: "🧩", h: "Aktivitet", txt: "Quiz, rebus og løp med poster i rekkefølge." }
+};
 const USE_CASES = [
-  { ico: "🚗", h: "Spørrekonkurranse på vei til hytta", s: "Quiz på vei til hytta", txt: "Lag en quiz langs veien som familien hører i bilen. Still spørsmålet i ett spor og gi svaret i neste – eller bruk kodeord. Del med gjestene, og avslutt med et spor som forklarer hvor de parkerer.", how: "Ny sekvens · merke quiz · del med venner", preset: { cats: ["fun"], tags: ["quiz"], seq: "Quiz til hytta", vis: "friends" } },
-  { ico: "💌", h: "Hilsen der dere møttes første gang", s: "Hilsen der dere møttes", txt: "Legg igjen en hilsen til kjæresten din på stedet der dere møttes. Gjør sporet skjult, og send lenken bare til henne eller ham.", how: "Skjult skattejakt · bare meg · del lenken", preset: { cats: ["memories"], access: "hidden", vis: "private", radius: 30 } },
-  { ico: "🏘", h: "Fortell om nabolaget ditt", txt: "Hvem bygde huset på hjørnet? Hva skjedde på løkka? Legg spor ved stedene, gjerne som en vandring i en sekvens.", how: "Spor ved hvert sted · gjerne sekvens", preset: { cats: ["history"] } },
-  { ico: "🗣", h: "Dialektreisen fra sør til nord", txt: "Fortell en artig historie på din dialekt der du bor, og utfordre noen du kjenner til å gjøre det samme et annet sted. Så kan andre reise gjennom landet og følge dialektene.", how: "Historie og dialekt · merke dialekt · 📣 Utfordre en venn", preset: { cats: ["history"], tags: ["dialekt"], vis: "public" } },
-  { ico: "🕰", h: "Memory lane", txt: "Fortell et minne fra et sted, og utfordre venner til å fortelle sine minner fra samme sted med «💬 Svar». Som et fotoalbum – bare med ekte stemmer.", how: "Minner og historier · 📣 Utfordre · 💬 Svar", preset: { cats: ["memories"] } },
-  { ico: "❓", h: "Quizrunde i nabolaget", s: "Quizrunde i nabolaget", txt: "Lag en runde der deltakerne må gå til hver post for å høre spørsmålet. Første post står i kartet med hengelås. De neste er skjult og dukker opp én og én når forrige spørsmål er besvart.", how: "Ny sekvens · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Quizrunde", cats: ["fun"], tags: ["quiz"], radius: 30 } },
-  { ico: "🗝", h: "Rebusløp med gjemte spor", s: "Rebusløp med tidtaking", txt: "Gjem postene som skjulte spor i en sekvens. Hver post gir et hint og ber om et kodeord før neste post dukker opp. Slå på tidtaking og se hvem som er raskest.", how: "Ny sekvens med tidtaking · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Rebusløp", timed: true, cats: ["fun"], tags: ["rebus"], radius: 30 } },
-  { ico: "⛵", h: "SoundPin-regatta", txt: "Legg ut spor som merker båtene må innom i rekkefølge. Del erfaringer om farvannet ved hvert merke – strøm, grunner, gode ankringsplasser. Tiden går fra første til siste merke, gjerne med tidsfrist.", how: "Ny sekvens med tidtaking · radius fra 20 m · merke seiling", preset: { seq: "Regatta", timed: true, cats: ["nature"], tags: ["seiling"], radius: 50 } }
+  // ---- Sofa ----
+  { id: "hilsen", mode: "sofa", w: 3, noAuto: true, eve: true, ico: "💌", h: "Hilsen til en du er glad i", s: "Hilsen til en du er glad i",
+    txt: "Legg igjen en hilsen der den du er glad i bor, ofte er – eller der dere møttes. Gjør den skjult og del den med vennene dine. Den åpner seg når hun eller han er der.",
+    how: "Minner · skjult · venner · del lenken", preset: { cats: ["memories"], access: "hidden", vis: "friends", radius: 40 } },
+  { id: "memorylane", mode: "sofa", eve: true, ico: "🕰", h: "Memory lane", txt: "Fortell et minne fra et sted, og utfordre venner til å fortelle sine minner fra samme sted med «💬 Svar». Som et fotoalbum – bare med ekte stemmer.",
+    how: "Minner og historier · 📣 Utfordre · 💬 Svar", preset: { cats: ["memories"] } },
+  { id: "hjemlengsel", mode: "sofa", eve: true, ico: "🏡", h: "Hjemlengsel", txt: "Bor du et annet sted enn du vokste opp? Hør minnene fra hjemstedet hjemmefra, og svar med dine egne. Bruk gjerne et felles merke for stedet, som #fister.",
+    how: "Minner og historier · merke for stedet · 💬 Svar", preset: { cats: ["memories"], vis: "public" } },
+  { id: "planlegg", mode: "sofa", ico: "🗺", h: "Planlegg turen", txt: "Hør sporene langs turen hjemmefra før du drar. Spor som krever at du er der, sparer det beste til du er fremme.",
+    how: "Opplev stedet · gjerne «Må være der»", preset: { cats: ["visit"], access: "locked", vis: "public" } },
+  { id: "historielag", mode: "sofa", ico: "📜", h: "Historielagets samling", txt: "Fortellinger som må høres på stedet første gang. Etterpå kan de høres hjemme, og blir en samling for alle som har gått turen.",
+    how: "Historie og dialekt · «Må være der»", preset: { cats: ["history"], access: "locked", vis: "public" } },
+  // ---- Forflytning ----
+  { id: "veitips", mode: "move", car: true, ico: "🛣", h: "Veitips fra lokalkjente", txt: "Del det bare lokalkjente vet: glatt i svingen etter brua, hvor du venter best i fergekø, eller hvor du bør parkere. Sett til-dato når tipset bare gjelder en stund.",
+    how: "Steds- og veiinfo · stor radius · gjerne til-dato", preset: { cats: ["practical"], radius: 150, vis: "public" } },
+  { id: "guide", mode: "move", car: true, ico: "🧭", h: "Turistguide langs en rute", txt: "Lag en guidet tur langs veien som en sekvens i kjøreretningen, gjerne på norsk, engelsk og tysk. Sporene spilles av av seg selv i bilen.",
+    how: "Opplev stedet · ny sekvens · ett spor per språk", preset: { cats: ["visit"], seq: "Turistguide", radius: 150, vis: "public" } },
+  { id: "farvann", mode: "move", sea: true, ico: "⚓", h: "Farvannsguide for båtfolk", txt: "Fortell om ankringsplasser, grunner, strøm og fiskeplasser der det gjelder. Båtfolk får det i øret når de passerer.",
+    how: "Natur og friluftsliv · merke båt", preset: { cats: ["nature"], tags: ["båt"], radius: 150, vis: "public" } },
+  { id: "kommune", mode: "move", car: true, official: true, ico: "🛡", h: "Kommune og Vegvesen", txt: "For offentlige organer: veiarbeid, stengt kai eller kokevarsel – der folk ferdes, og bare så lenge det gjelder.",
+    how: "Sikkerhet og myndighetsinfo · fra- og til-dato · rollen Offentlig organ", preset: { cats: ["official"], validDays: 14, vis: "public", radius: 150 } },
+  { id: "hvaskjer", mode: "move", ico: "📣", h: "Hva skjer her?", txt: "Dugnad, loppemarked eller gatefest – legg det der det skjer, med dato. Sporet forsvinner av seg selv når det er over.",
+    how: "Nabolaget · fra- og til-dato", preset: { cats: ["local"], validDays: 7 } },
+  { id: "nabolaget", mode: "move", ico: "🏘", h: "Fortell om nabolaget ditt", txt: "Hvem bygde huset på hjørnet? Hva skjedde på løkka? Legg spor ved stedene, gjerne som en vandring i en sekvens.",
+    how: "Historie og dialekt · gjerne sekvens", preset: { cats: ["history"] } },
+  { id: "dialekt", mode: "move", ico: "🗣", h: "Dialektreisen fra sør til nord", txt: "Fortell en artig historie på din dialekt der du bor, og utfordre noen du kjenner til å gjøre det samme et annet sted. Så kan andre reise gjennom landet og følge dialektene.",
+    how: "Historie og dialekt · merke dialekt · 📣 Utfordre en venn", preset: { cats: ["history"], tags: ["dialekt"], vis: "public" } },
+  { id: "laater", mode: "move", ico: "🎵", h: "Låter og dikt på stedet", txt: "Les diktet eller syng sangen på stedet den handler om. Bare egne verk, eller med tillatelse fra den som har rettighetene.",
+    how: "Litteratur og musikk · egne verk eller med tillatelse", preset: { cats: ["arts"] } },
+  // ---- Aktivitet ----
+  { id: "quizhytta", mode: "activity", car: true, ico: "🚗", h: "Spørrekonkurranse på vei til hytta", s: "Quiz på vei til hytta", txt: "Lag en quiz langs veien som familien hører i bilen. Still spørsmålet i ett spor og gi svaret i neste – eller bruk kodeord. Del med gjestene, og avslutt med et spor som forklarer hvor de parkerer.",
+    how: "Ny sekvens · merke quiz · del med venner", preset: { cats: ["fun"], tags: ["quiz"], seq: "Quiz til hytta", vis: "friends" } },
+  { id: "quizrunde", mode: "activity", ico: "❓", h: "Quizrunde i nabolaget", txt: "Lag en runde der deltakerne må gå til hver post for å høre spørsmålet. Første post står i kartet med hengelås. De neste er skjult og dukker opp én og én når forrige spørsmål er besvart.",
+    how: "Ny sekvens · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Quizrunde", cats: ["fun"], tags: ["quiz"], radius: 30 } },
+  { id: "rebus", mode: "activity", ico: "🗝", h: "Rebusløp med gjemte spor", s: "Rebusløp med tidtaking", txt: "Gjem postene som skjulte spor i en sekvens. Hver post gir et hint og ber om et kodeord før neste post dukker opp. Slå på tidtaking og se hvem som er raskest.",
+    how: "Ny sekvens med tidtaking · post 1 «Må være der», resten «Skjult» · kodeord", preset: { access: "locked", seq: "Rebusløp", timed: true, cats: ["fun"], tags: ["rebus"], radius: 30 } },
+  { id: "bursdag", mode: "activity", ico: "🎂", h: "Bursdags-skattejakt", txt: "Gjem postene rundt huset eller i parken. Sett til-dato samme dag, så forsvinner sporene av seg selv etter festen.",
+    how: "Ny sekvens · skjulte poster · venner · til-dato i dag", preset: { cats: ["fun"], seq: "Skattejakt", access: "locked", vis: "friends", radius: 25, validDays: 0 } },
+  { id: "uteskole", mode: "activity", ico: "🎒", h: "Uteskole og natursti", txt: "Læreren lager poster med spørsmål og kodeord langs en sti, og klassen går sammen og svarer. Del med venner – barns stemmer bør ikke ligge åpent for alle.",
+    how: "Natur eller historie · ny sekvens · kodeord · venner", preset: { cats: ["nature"], seq: "Natursti", access: "locked", vis: "friends", radius: 30 } },
+  { id: "spraak", mode: "activity", ico: "🌍", h: "Språkquiz", txt: "Post 1 på norsk, de neste på språket som skal læres. Fint for språkkurs og nye landsmenn.",
+    how: "Ny sekvens · post 1 på norsk · velg språk per post", preset: { cats: ["fun"], tags: ["språk"], seq: "Språkquiz", access: "locked", radius: 30 } },
+  { id: "firma", mode: "activity", ico: "🏁", h: "Teambuilding og firmaløp", txt: "Poster med oppgaver og tidtaking. Lagene ser resultatlisten etterpå.",
+    how: "Ny sekvens med tidtaking · kodeord", preset: { cats: ["fun"], seq: "Firmaløp", timed: true, access: "locked", radius: 30 } },
+  { id: "regatta", mode: "activity", sea: true, ico: "⛵", h: "SoundPin-regatta", txt: "Legg ut spor som merker båtene må innom i rekkefølge. Del erfaringer om farvannet ved hvert merke – strøm, grunner, gode ankringsplasser. Tiden går fra første til siste merke, gjerne med tidsfrist.",
+    how: "Ny sekvens med tidtaking · radius fra 20 m · merke seiling", preset: { seq: "Regatta", timed: true, cats: ["nature"], tags: ["seiling"], radius: 50 } }
 ];
-function openHelp() {
+const ucById = id => USE_CASES.find(u => u.id === id);
+let tipsCfg = {};                   // bruksområde-id → spor-id (eksempel valgt av admin)
+// Spor som kan brukes som eksempel: delt med alle, ikke skjult, gyldig, ikke meldt og ikke privat-merket
+const exampleOk = t => !!t && playable(t) && inForce(t) && !flagHidden(t) && accessOf(t) !== "hidden" && (t.legacy || t.visibility === "public") && !isHiddenByDefault(t) && !isMuted(t) && !t.seqId;
+function exampleFor(u) {
+  const chosen = byId.get(tipsCfg[u.id]);
+  if (chosen && playable(chosen) && !chosen.archived) return { t: chosen, chosen: true };
+  const p = u.preset || {};
+  // Forslag uten admins valg: bare spor som har vist seg gode (verifisert, eller hørt ferdig av flere),
+  // på et språk lytteren forstår, og som kan høres uten å dra dit. Hilsener foreslås aldri automatisk.
+  if (u.noAuto) return null;
+  const st = id => decayed(stats[id] || {}).c;
+  const cand = tracks.filter(t => exampleOk(t) && isUnlocked(t) && (t.label === "verified" || st(t.id) >= 3) && langs.has(trackLang(t))
+    && (p.tags?.length ? p.tags.some(x => t.tags.includes(x)) : (p.cats || []).some(c => (t.cats || []).includes(c))));
+  if (!cand.length) return null;
+  cand.sort((a, b) => (quality(b) - quality(a)) || (st(b.id) - st(a.id)));
+  return { t: cand[0], chosen: false };
+}
+function playExample(u) {
+  const ex = exampleFor(u); if (!ex) { toast("Det finnes ikke noe eksempel ennå."); return; }
+  const t = ex.t;
+  hideTeaser(); $("help-bg").classList.remove("show");
+  map.setView([t.lat, t.lng], Math.max(map.getZoom(), 15));
+  if (!isUnlocked(t)) { const was = unlocks[t.id]; unlocks[t.id] = 1; play(t); if (!was) delete unlocks[t.id]; }   // eksempelet kan høres selv om det krever at man er der
+  else play(t);
+  toast(`${u.ico} Eksempel på «${u.h}»`, 3500);
+}
+async function setExample(u, t) {
+  const next = { ...tipsCfg }; if (t) next[u.id] = t.id; else delete next[u.id];
+  try { await fb.setDoc(fb.doc(fb.db, "sp_config", "tips"), { ex: next }); tipsCfg = next; toast(t ? `💡 «${t.title || "Sporet"}» er nå eksempel for «${u.h}».` : `Eksempelet for «${u.h}» er fjernet.`, 4000); }
+  catch (e) { toast("Kunne ikke lagre: " + (e.code || e.message), 6000); }
+}
+// Under «?»: bruksområdene ordnet etter modus. Med pickFor velger admin hvilket bruksområde et spor er eksempel for.
+function openHelp({ pickFor = null } = {}) {
   const box = $("help");
-  box.innerHTML = `<div class="row"><h2 style="flex:1">💡 Bruksområder</h2><button id="help-x">✕</button></div>
-    <p class="hint">Her er noen eksempler på hva du kan lage med SoundPin. «Prøv» åpner skjemaet for nytt spor med valgene ferdig satt – du tar opp der krysset står.</p>
-    ${USE_CASES.map((u, i) => `<div class="uc"><h3>${u.ico} ${esc(u.h)}</h3><p>${esc(u.txt)}</p><div class="row"><span class="hint" style="flex:1">${esc(u.how)}</span><button data-uc="${i}" class="primary">Prøv</button></div></div>`).join("")}
-    <div class="uc" style="background:#fff6f2; border-color:#f3c9b9"><h3>✨ …og mange andre måter</h3><p>Guidet tur for turister, skattejakt i bursdagen, historielagets vandring, natursti for skoleklassen, tips til fiskeplasser, en hilsen til barnebarna på hytta. Bare fantasien setter grenser – lag ditt eget spor og se hva andre finner på.</p><div class="row"><span class="hint" style="flex:1">Hold inne krysset i kartet for å begynne</span><button data-uc="free">Lag et spor</button></div></div>
+  const visible = USE_CASES.filter(u => !u.official || canOfficial() || isAdmin());
+  const ucHtml = u => {
+    const ex = exampleFor(u), adm = isAdmin() && fb;
+    const exLine = adm ? `<div class="ex">${ex ? `Eksempel: ${ex.chosen ? "" : "(forslag) "}«${esc(ex.t.title || "uten navn")}»` : "⚠ Mangler eksempel – spill inn et, eller velg et med 💡 i spilleren"}${tipsCfg[u.id] ? ` · <a href="#" data-rm="${u.id}">Fjern</a>` : ""}</div>` : "";
+    const btns = pickFor ? `<button data-pick="${u.id}" class="primary">${tipsCfg[u.id] === pickFor.id ? "✓ Valgt" : "Velg"}</button>`
+      : `${ex ? `<button data-ex="${u.id}">▶ Eksempel</button>` : ""}<button data-uc="${u.id}" class="primary">Prøv</button>`;
+    return `<div class="uc"><h3>${u.ico} ${esc(u.h)}</h3>${pickFor ? "" : `<p>${esc(u.txt)}</p>`}<div class="row"><span class="hint" style="flex:1">${esc(u.how)}</span>${btns}</div>${exLine}</div>`;
+  };
+  box.innerHTML = `<div class="row"><h2 style="flex:1">${pickFor ? "💡 Eksempel for …" : "💡 Bruksområder"}</h2><button id="help-x">✕</button></div>
+    <p class="hint">${pickFor ? `Velg hvilket bruksområde «${esc(pickFor.title || "sporet")}» skal være eksempel for. Eksempelet spilles av fra dagens tips og herfra.`
+      : "«▶ Eksempel» spiller et godt spor med dette innholdet. «Prøv» åpner skjemaet med valgene ferdig satt – du tar opp der krysset står. Hver gang du åpner SoundPin, får du ett av disse som dagens tips."}</p>
+    ${Object.entries(MODE_INFO).map(([m, mi]) => `<h3 class="uc-mode">${mi.ico} ${mi.h}</h3><div class="hint">${mi.txt}</div>${visible.filter(u => u.mode === m).map(ucHtml).join("")}`).join("")}
+    ${pickFor ? "" : `<div class="uc" style="background:#fff6f2; border-color:#f3c9b9"><h3>✨ …og mange andre måter</h3><p>Bare fantasien setter grenser – lag ditt eget spor og se hva andre finner på.</p><div class="row"><span class="hint" style="flex:1">Hold inne krysset i kartet for å begynne</span><button data-uc="free">Lag et spor</button></div></div>
     <details class="uc"><summary><b>🌐 Språk jeg forstår</b></summary><div id="help-langs" style="margin-top:.4rem"></div></details>
-    <div class="footer"><button id="help-intro">▶ Se introduksjonen</button><button id="help-close">Lukk</button></div>
+    <label class="hint" style="display:flex; gap:.4rem; align-items:center; margin-top:.7rem"><input type="checkbox" id="help-tips" ${store.get("sp-tips-off", false) ? "" : "checked"}> Vis dagens tips når appen åpnes</label>`}
+    <div class="footer">${pickFor ? "" : '<button id="help-intro">▶ Se introduksjonen</button>'}<button id="help-close">Lukk</button></div>
     <div class="hint" style="text-align:center; margin-top:.5rem">SoundPin versjon ${APP_VERSION}</div>`;
   const close = () => $("help-bg").classList.remove("show");
   $("help-x").onclick = close; $("help-close").onclick = close;
-  $("help-intro").onclick = () => { close(); showIntro(0); };
-  langPicker($("help-langs"));
+  if (!pickFor) {
+    $("help-intro").onclick = () => { close(); showIntro(0); };
+    langPicker($("help-langs"));
+    $("help-tips").onchange = e => store.set("sp-tips-off", !e.target.checked);
+  }
   box.querySelectorAll("[data-uc]").forEach(b => b.onclick = () => {
     close();
     if (b.dataset.uc === "free") { if (canRecord()) { R.crossPos = map.getCenter(); openRecorder({}); setPos("map"); } return; }
-    tryUseCase(USE_CASES[+b.dataset.uc]);
+    tryUseCase(ucById(b.dataset.uc));
   });
+  box.querySelectorAll("[data-ex]").forEach(b => b.onclick = () => playExample(ucById(b.dataset.ex)));
+  box.querySelectorAll("[data-pick]").forEach(b => b.onclick = async () => { await setExample(ucById(b.dataset.pick), pickFor); close(); });
+  box.querySelectorAll("[data-rm]").forEach(a => a.onclick = async e => { e.preventDefault(); await setExample(ucById(a.dataset.rm), null); openHelp({ pickFor }); });
   $("help-bg").classList.add("show");
 }
 function tryUseCase(u) {
   if (!canRecord()) return;
+  if (u.mode && mode !== u.mode) setMode(u.mode);
   R.crossPos = map.getCenter();
   openRecorder({});
   setPos("map");
   const p = u.preset || {};
-  (p.cats || []).forEach(c => R.cats.add(c)); renderCats();
+  (p.cats || []).filter(c => c !== "official" || canOfficial()).forEach(c => R.cats.add(c)); renderCats();
   if (p.tags) $("rec-tags").value = p.tags.join(", ");
-  if (p.vis) setVis(p.vis);
+  if (p.vis) setVis(p.vis === "public" && !canPublic() ? "public" : p.vis);
   if (p.access) setAccess(p.access);
   if (p.radius) setRadius(p.radius);
+  if (p.validDays != null) { $("rec-to").value = isoDate(Date.now() + p.validDays * DAY); }
   if (p.seq) {
     $("rec-seq").value = "new"; $("rec-seq").onchange();
     $("rec-seq-name").value = p.seq;
     if (p.timed) { $("rec-timed").checked = true; $("rec-timed").onchange(); }
   }
-  if (p.access || p.seq || p.radius) $("rec-more").open = true;
+  if (p.access || p.seq || p.radius || p.validDays != null) $("rec-more").open = true;
   updateSummary();
   toast(`${u.ico} ${u.h}: valgene er satt. Ta opp, gi sporet en tittel og lagre.`, 5000);
 }
 $("help-btn").onclick = () => { hideTeaser(); openHelp(); };
 
-// Kort animasjon ved oppstart: bruksområdene ruller forbi, og «?» blinker så man ser hvor de finnes
-const TS = { timer: null, i: 0 };
-function showTeaser() {
-  if (run || activeSeq || $("spw-hint").classList.contains("show")) return;
-  TS.i = 0; $("spw-hint").classList.add("show"); $("help-btn").classList.add("pulse");
-  const step = () => {
-    const slot = $("ts-slot");
-    if (TS.i < USE_CASES.length) {
-      const u = USE_CASES[TS.i++];
-      slot.innerHTML = `<div class="item"><span class="i">${u.ico}</span><span><span class="lead">Prøv for eksempel</span><span class="h">${esc(u.s || u.h)}</span></span></div>`;
-      TS.timer = setTimeout(step, 1500);
-    } else {
-      slot.innerHTML = `<div class="item end"><span class="i">✨</span><span>…og mange andre måter. Trykk her eller på <b>?</b> for å prøve!</span></div>`;
-      TS.timer = setTimeout(hideTeaser, 6000);
-    }
-  };
-  step();
+// ---- Dagens tips: ett bruksområde hver gang appen åpnes ----
+// Rundgang (samme tips kommer ikke igjen før man har sett de andre), vektet: hilsenen oftere, og noen passer bedre om kvelden.
+const TS = { shown: false, u: null };
+function pickTip() {
+  const all = USE_CASES.filter(u => !u.official || canOfficial());
+  let seen = new Set(store.get("sp-tips-seen", []));
+  let pool = all.filter(u => !seen.has(u.id));
+  if (!pool.length) { seen = new Set(); pool = all; }
+  const h = new Date().getHours(), m = new Date().getMonth();
+  const weight = u => (u.w || 1) * (u.eve && (h >= 18 || h < 2) ? 2 : 1) * (u.sea && (m < 4 || m > 8) ? 0.3 : 1) * (u.car && carMode ? 2 : 1);
+  const tot = pool.reduce((a, u) => a + weight(u), 0);
+  let r = Math.random() * tot, u = pool[0];
+  for (const x of pool) { r -= weight(x); if (r <= 0) { u = x; break; } }
+  seen.add(u.id); store.set("sp-tips-seen", [...seen]);
+  return u;
 }
-function hideTeaser() { clearTimeout(TS.timer); $("spw-hint").classList.remove("show"); $("help-btn").classList.remove("pulse"); }
-$("spw-hint").onclick = e => { if (e.target.id === "ts-x") return; hideTeaser(); openHelp(); };
+function showTeaser() {
+  if (TS.shown || store.get("sp-tips-off", false) || run || activeSeq || $("spw-guide").classList.contains("show")) return;
+  const q = new URLSearchParams(location.search); if (q.get("pin") || q.get("venn")) return;
+  TS.shown = true;
+  const u = TS.u = pickTip();
+  $("ts-i").textContent = u.ico; $("ts-h").textContent = u.h; $("ts-t").textContent = u.txt;
+  // Første gang: forklar at det kommer et nytt tips hver gang
+  $("ts-first").textContent = store.get("sp-tips-explained", false) ? "" : "Hver gang du åpner SoundPin, får du et tips om hva du kan bruke den til. Alle tipsene finner du under ?.";
+  store.set("sp-tips-explained", true);
+  $("ts-ex").style.display = exampleFor(u) ? "" : "none";
+  $("spw-hint").classList.add("show");
+}
+function hideTeaser() { $("spw-hint").classList.remove("show"); }
 $("ts-x").onclick = e => { e.stopPropagation(); hideTeaser(); };
+$("ts-go").onclick = () => { hideTeaser(); if (TS.u) tryUseCase(TS.u); };
+$("ts-ex").onclick = () => { if (TS.u) playExample(TS.u); };
+// Vises når sporene og eksempelvalgene er lastet (eller etter litt tid uten nett)
+function tipWhenReady() { if (!TS.shown) setTimeout(showTeaser, 600); }
 
 // ================= Ny versjon =================
 // Ved oppstart og når appen kommer tilbake i forgrunnen hentes index.html uten mellomlager. Er versjonen nyere,
@@ -3365,7 +3487,7 @@ window.addEventListener("pagehide", () => { if (playSess) endPlay("other"); });
   const introOff = store.get("sp-intro-off", false) === true;
   console.info("Oppstart", { versjon: APP_VERSION, introOff, run: !!run, search: location.search });
   if (!qs0.get("pin") && !qs0.get("venn")) {
-    try { if (!introOff) showIntro(0); else setTimeout(showTeaser, 1200); }
+    try { if (!introOff) showIntro(0); else setTimeout(showTeaser, 9000); }   // vanligvis tidligere, når sporene er lastet (tipWhenReady)
     catch (e) { console.error(e); toast("Introduksjonen feilet: " + e.message, 8000); }
   }
   await loadAll();
